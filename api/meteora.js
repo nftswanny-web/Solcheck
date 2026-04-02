@@ -7,8 +7,9 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const path = req.query.path || '/pair/all';
-    const fullUrl = 'https://dlmm-api.meteora.ag' + path;
+    const path = req.query.path || '/pools';
+    const baseUrl = path.startsWith('/pair/') ? 'https://dlmm-api.meteora.ag' : 'https://dlmm.datapi.meteora.ag';
+    const fullUrl = baseUrl + path;
 
     const response = await fetch(fullUrl, {
       headers: {
