@@ -397,15 +397,44 @@ function renderResults(mint, rc, jup, met) {
   const gmgnUrl = 'https://gmgn.ai/sol/token/' + encodeURIComponent(mint);
   const primaryPool = Array.isArray(met) && met.length ? [...met].sort((a,b) => (num(b?.liquidity, b?.tvl) || 0) - (num(a?.liquidity, a?.tvl) || 0))[0] : null;
   const marketCap = num(jup?.marketCap, jup?.market_cap, jup?.fdv, jup?.mcap, rc?.tokenMeta?.marketCap);
-  const tokenAgeHours = ageFromTimestamp(jup?.createdAt, jup?.created_at, jup?.mintedAt, jup?.firstPool?.createdAt, rc?.tokenMeta?.createdAt);
+  const tokenAgeHours = ageFromTimestamp(
+    jup?.createdAt,
+    jup?.created_at,
+    jup?.mintedAt,
+    jup?.minted_at,
+    jup?.firstPool?.createdAt,
+    jup?.firstPool?.created_at,
+    primaryPool?.created_at,
+    primaryPool?.createdAt,
+    primaryPool?.pool_created_at,
+    primaryPool?.open_timestamp,
+    primaryPool?.openTime,
+    rc?.tokenMeta?.createdAt,
+    rc?.tokenMeta?.created_at
+  );
   const totalFees24h = num(primaryPool?.fees?.['24h'], primaryPool?.fees_24h, primaryPool?.fee_24h);
   const totalLiquidity = (Array.isArray(met) ? met : []).reduce((sum, p) => sum + (num(p?.liquidity, p?.tvl) || 0), 0) || null;
   const topH = pct(jup?.audit?.topHoldersPercentage, jup?.holderMetrics?.top10Percentage);
-  const devH = pct(jup?.audit?.devBalancePercentage, jup?.audit?.devWalletPercentage, jup?.holderMetrics?.devPercentage);
-  const snipersH = pct(jup?.audit?.snipersPercentage, jup?.audit?.sniperPercentage, jup?.holderMetrics?.snipersPercentage);
+  const devH = pct(
+    jup?.audit?.devBalancePercentage,
+    jup?.audit?.devWalletPercentage,
+    jup?.audit?.developerPercentage,
+    jup?.audit?.devPercentage,
+    jup?.holderMetrics?.devPercentage,
+    jup?.holderMetrics?.developerPercentage,
+    jup?.devPercentage
+  );
+  const snipersH = pct(
+    jup?.audit?.snipersPercentage,
+    jup?.audit?.sniperPercentage,
+    jup?.audit?.sniperPct,
+    jup?.holderMetrics?.snipersPercentage,
+    jup?.holderMetrics?.sniperPercentage,
+    jup?.snipersPercentage
+  );
   const freezeDisabled = jup?.audit?.freezeAuthorityDisabled;
   const mintDisabled = jup?.audit?.mintAuthorityDisabled;
-  const dexLabel = jup?.dex || jup?.exchange || jup?.audit?.dex || (jup?.tags?.includes('paid') ? 'Paid' : null);
+  const dexLabel = jup?.dex || jup?.exchange || jup?.audit?.dex || primaryPool?.name || primaryPool?.pool_type || primaryPool?.dex || (jup?.tags?.includes('paid') ? 'Paid' : null);
   h += `<div class="token-hd">
     ${logo ? '<img src="'+esc(logo)+'" onerror="this.style.display=\'none\'">' : ''}
     <div>
