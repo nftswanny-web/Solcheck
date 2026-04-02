@@ -290,14 +290,40 @@ async function gmgnProxy(path, apiKey) {
   let url = '/api/gmgn?path='+encodeURIComponent(path);
   if (apiKey) url += '&apikey='+encodeURIComponent(apiKey);
   const r = await fetch(url, { signal: AbortSignal.timeout(20000) });
-  if (!r.ok) throw new Error('HTTP '+r.status);
-  return await r.json();
+  const data = await r.json().catch(() => null);
+  if (!r.ok) {
+    const message = data?.message || data?.error || ('HTTP '+r.status);
+    throw new Error(message);
+  }
+  return data;
 }
 async function meteoraProxy(path) {
-  const url = '/api/meteora?path='+encodeURIComponent(path || '/pair/all');
+  const url = '/api/meteora?path='+encodeURIComponent(path || '/pools');
   const r = await fetch(url, { signal: AbortSignal.timeout(30000) });
-  if (!r.ok) throw new Error('HTTP '+r.status);
-  return await r.json();
+  const data = await r.json().catch(() => null);
+  if (!r.ok) {
+    const message = data?.message || data?.error || ('HTTP '+r.status);
+    throw new Error(message);
+  }
+  return data;
+}
+
+function normalizeGMGNToken(data) {
+  if (!data) return null;
+  if (data.token) return data;
+  if (Array.isArray(data)) return data[0] || null;
+  if (data.data?.token || data.data?.pair) return data.data;
+  if (data.data && typeof data.data === 'object') return data.data;
+  return data;
+}
+
+function normalizeMeteoraPools(data, mint) {
+  const list = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
+  return list.filter((pool) => {
+    const mintX = pool?.token_x?.address || pool?.mint_x;
+    const mintY = pool?.token_y?.address || pool?.mint_y;
+    return mintX === mint || mintY === mint;
+  });
 }
 
 // 3. GMGN (via our Vercel proxy)
@@ -305,6 +331,7 @@ async function fetchGMGN(mint) {
   setStep('GMGN', 'loading');
   const apiKey = $('gmgnKey').value.trim();
   const endpoints = [
+    '/api/v1/multi_window_token_info/sol/'+mint,
     '/api/v1/mutil_window_token_info/sol/'+mint,
     '/api/v1/token_info/sol/'+mint,
     '/defi/quotation/v1/tokens/sol/'+mint,
@@ -312,14 +339,15 @@ async function fetchGMGN(mint) {
   for (const ep of endpoints) {
     try {
       const d = await gmgnProxy(ep, apiKey);
-      if (d && (d.code === 0 || d.data || d.token)) {
+      const normalized = normalizeGMGNToken(d);
+      if (normalized && (d?.code === 0 || d?.data || normalized.token || normalized.pair || normalized.market_cap != null)) {
         setStep('GMGN', 'done');
-        return d.data || d;
+        return normalized;
       }
     } catch(e) { continue; }
   }
   setStep('GMGN', 'fail');
-  return null;
+  return { _error: apiKey ? 'GMGN non ha restituito dati con questa chiave.' : 'GMGN richiede una chiave valida o accesso server-side approvato.' };
 }
 
 // Also fetch GMGN top traders to find KOLs
@@ -343,10 +371,12 @@ async function fetchGMGNKols(mint) {
 async function fetchMeteora(mint) {
   setStep('Meteora', 'loading');
   try {
-    const d = await meteoraProxy('/pair/all');
     let pools = [];
-    if (Array.isArray(d)) {
-      pools = d.filter(p => p.mint_x === mint || p.mint_y === mint);
+    try {
+      pools = normalizeMeteoraPools(await meteoraProxy('/pools?page=1&page_size=100&query='+encodeURIComponent(mint)), mint);
+    } catch(e) {}
+    if (!pools.length) {
+      pools = normalizeMeteoraPools(await meteoraProxy('/pair/all'), mint);
     }
     setStep('Meteora', pools.length ? 'done' : 'fail');
     return pools;
@@ -462,6 +492,10 @@ function renderResults(mint, rc, jup, gmgn, met, kols) {
 
   h += '</div></div>';
 
+  if (gmgn?._error) {
+    h += `<div class="section"><div class="err">${esc(gmgn._error)}</div></div>`;
+  }
+
   // ── EXTRA INFO (non-scored) ──
   h += '<div class="section"><div class="stitle"><span class="icon">ℹ️</span> Info Aggiuntive</div><div class="grid">';
   const extraFields = [
@@ -527,14 +561,18 @@ function renderResults(mint, rc, jup, gmgn, met, kols) {
     h += '</tr></thead><tbody>';
     met.forEach(p => {
       const tvl = p.liquidity || p.tvl || 0;
-      const vol = p.trade_volume_24h || p.volume_24h || 0;
-      const fees = p.fees_24h || p.fee_24h || 0;
-      const feeTvl = tvl > 0 ? (fees / tvl * 100) : 0;
+      const vol = p.trade_volume_24h || p.volume?.['24h'] || p.volume_24h || 0;
+      const fees = p.fees_24h || p.fees?.['24h'] || p.fee_24h || 0;
+      const feeTvl = p.fee_tvl_ratio?.['24h'] != null ? p.fee_tvl_ratio['24h'] : (tvl > 0 ? (fees / tvl * 100) : 0);
+      const pairName = p.name || ((p.token_x?.symbol || p.mint_x_symbol || '?')+'/'+(p.token_y?.symbol || p.mint_y_symbol || '?'));
+      const poolAddress = p.address || p.pair_address || '';
+      const binStep = p.bin_step || p.pool_config?.bin_step || '—';
+      const baseFeePct = p.base_fee_percentage != null ? p.base_fee_percentage : p.pool_config?.base_fee_pct;
       h += `<tr>
-        <td><a href="https://app.meteora.ag/dlmm/${esc(p.address||p.pair_address||'')}" target="_blank" style="color:var(--ac2);text-decoration:none">${sh(p.address||p.pair_address||'')}</a></td>
-        <td>${esc(p.name || ((p.mint_x_symbol||'?')+'/'+(p.mint_y_symbol||'?')))}</td>
-        <td>${p.bin_step||'—'}</td>
-        <td>${p.base_fee_percentage != null ? p.base_fee_percentage+'%' : '—'}</td>
+        <td><a href="https://app.meteora.ag/dlmm/${esc(poolAddress)}" target="_blank" style="color:var(--ac2);text-decoration:none">${sh(poolAddress)}</a></td>
+        <td>${esc(pairName)}</td>
+        <td>${binStep}</td>
+        <td>${baseFeePct != null ? baseFeePct+'%' : '—'}</td>
         <td>${fm(tvl)}</td>
         <td>${fm(vol)}</td>
         <td>${fm(fees)}</td>
