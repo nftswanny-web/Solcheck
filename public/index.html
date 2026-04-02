@@ -286,10 +286,47 @@ async function fetchJupiter(mint) {
 }
 
 // Helper: call our proxies
-async function gmgnProxy(path, apiKey) {
-  let url = '/api/gmgn?path='+encodeURIComponent(path);
-  if (apiKey) url += '&apikey='+encodeURIComponent(apiKey);
-  const r = await fetch(url, { signal: AbortSignal.timeout(20000) });
+function getGmgnDeviceId() {
+  let id = localStorage.getItem('gmgn_device_id');
+  if (!id) {
+    id = (globalThis.crypto?.randomUUID?.() || ('gmgn-'+Math.random().toString(36).slice(2)+Date.now()));
+    localStorage.setItem('gmgn_device_id', id);
+  }
+  return id;
+}
+
+function buildGmgnMetaQuery() {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const appVer = `${now.getFullYear()}.${pad(now.getMonth()+1)}${pad(now.getDate())}.${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Rome';
+  const tzOffset = -now.getTimezoneOffset() * 60;
+  const lang = navigator.language || 'en-US';
+  const params = new URLSearchParams({
+    device_id: getGmgnDeviceId(),
+    client_id: 'gmgn_web_' + appVer,
+    from_app: 'gmgn',
+    app_ver: appVer,
+    tz_name: tz,
+    tz_offset: String(tzOffset),
+    app_lang: lang,
+  });
+  return params.toString();
+}
+
+async function gmgnProxy(path, apiKey, options = {}) {
+  const payload = {
+    path,
+    apikey: apiKey,
+    method: options.method || 'GET',
+    body: options.body,
+  };
+  const r = await fetch('/api/gmgn', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(20000),
+  });
   const data = await r.json().catch(() => null);
   if (!r.ok) {
     const message = data?.message || data?.error || ('HTTP '+r.status);
@@ -330,15 +367,19 @@ function normalizeMeteoraPools(data, mint) {
 async function fetchGMGN(mint) {
   setStep('GMGN', 'loading');
   const apiKey = $('gmgnKey').value.trim();
+  const meta = buildGmgnMetaQuery();
   const endpoints = [
-    '/api/v1/multi_window_token_info/sol/'+mint,
-    '/api/v1/mutil_window_token_info/sol/'+mint,
+    { path: '/api/v1/multi_window_token_info?'+meta, method: 'POST', body: { chain: 'sol', addresses: [mint] } },
+    { path: '/api/v1/mutil_window_token_info?'+meta, method: 'POST', body: { chain: 'sol', addresses: [mint] } },
+    { path: '/api/v1/multi_window_token_info/sol/'+mint, method: 'GET' },
+    { path: '/api/v1/mutil_window_token_info/sol/'+mint, method: 'GET' },
     '/api/v1/token_info/sol/'+mint,
     '/defi/quotation/v1/tokens/sol/'+mint,
   ];
-  for (const ep of endpoints) {
+  for (const entry of endpoints) {
     try {
-      const d = await gmgnProxy(ep, apiKey);
+      const ep = typeof entry === 'string' ? { path: entry, method: 'GET' } : entry;
+      const d = await gmgnProxy(ep.path, apiKey, { method: ep.method, body: ep.body });
       const normalized = normalizeGMGNToken(d);
       if (normalized && (d?.code === 0 || d?.data || normalized.token || normalized.pair || normalized.market_cap != null)) {
         setStep('GMGN', 'done');
