@@ -114,10 +114,6 @@ tr:hover td{background:rgba(124,92,252,.03)}
     <button class="settings-btn" onclick="openSettings()" title="Settings">⚙️</button>
     <button class="go" id="goBtn" onclick="analyze()">Analizza</button>
   </div>
-  <div class="api-row">
-    <label>GMGN Key:</label>
-    <input type="password" id="gmgnKey" value="gmgn_bd4e75687b81fded04092d42b407645d" placeholder="gmgn_...">
-  </div>
 </div>
 
 <div class="progress" id="progressBox" style="display:none">
@@ -286,54 +282,6 @@ async function fetchJupiter(mint) {
 }
 
 // Helper: call our proxies
-function getGmgnDeviceId() {
-  let id = localStorage.getItem('gmgn_device_id');
-  if (!id) {
-    id = (globalThis.crypto?.randomUUID?.() || ('gmgn-'+Math.random().toString(36).slice(2)+Date.now()));
-    localStorage.setItem('gmgn_device_id', id);
-  }
-  return id;
-}
-
-function buildGmgnMetaQuery() {
-  const now = new Date();
-  const pad = (n) => String(n).padStart(2, '0');
-  const appVer = `${now.getFullYear()}.${pad(now.getMonth()+1)}${pad(now.getDate())}.${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Rome';
-  const tzOffset = -now.getTimezoneOffset() * 60;
-  const lang = navigator.language || 'en-US';
-  const params = new URLSearchParams({
-    device_id: getGmgnDeviceId(),
-    client_id: 'gmgn_web_' + appVer,
-    from_app: 'gmgn',
-    app_ver: appVer,
-    tz_name: tz,
-    tz_offset: String(tzOffset),
-    app_lang: lang,
-  });
-  return params.toString();
-}
-
-async function gmgnProxy(path, apiKey, options = {}) {
-  const payload = {
-    path,
-    apikey: apiKey,
-    method: options.method || 'GET',
-    body: options.body,
-  };
-  const r = await fetch('/api/gmgn', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(20000),
-  });
-  const data = await r.json().catch(() => null);
-  if (!r.ok) {
-    const message = data?.message || data?.error || ('HTTP '+r.status);
-    throw new Error(message);
-  }
-  return data;
-}
 async function meteoraProxy(path) {
   const url = '/api/meteora?path='+encodeURIComponent(path || '/pools');
   const r = await fetch(url, { signal: AbortSignal.timeout(30000) });
@@ -342,15 +290,6 @@ async function meteoraProxy(path) {
     const message = data?.message || data?.error || ('HTTP '+r.status);
     throw new Error(message);
   }
-  return data;
-}
-
-function normalizeGMGNToken(data) {
-  if (!data) return null;
-  if (data.token) return data;
-  if (Array.isArray(data)) return data[0] || null;
-  if (data.data?.token || data.data?.pair) return data.data;
-  if (data.data && typeof data.data === 'object') return data.data;
   return data;
 }
 
@@ -363,52 +302,7 @@ function normalizeMeteoraPools(data, mint) {
   });
 }
 
-// 3. GMGN (via our Vercel proxy)
-async function fetchGMGN(mint) {
-  setStep('GMGN', 'loading');
-  const apiKey = $('gmgnKey').value.trim();
-  const meta = buildGmgnMetaQuery();
-  const endpoints = [
-    { path: '/api/v1/multi_window_token_info?'+meta, method: 'POST', body: { chain: 'sol', addresses: [mint] } },
-    { path: '/api/v1/mutil_window_token_info?'+meta, method: 'POST', body: { chain: 'sol', addresses: [mint] } },
-    { path: '/api/v1/multi_window_token_info/sol/'+mint, method: 'GET' },
-    { path: '/api/v1/mutil_window_token_info/sol/'+mint, method: 'GET' },
-    '/api/v1/token_info/sol/'+mint,
-    '/defi/quotation/v1/tokens/sol/'+mint,
-  ];
-  for (const entry of endpoints) {
-    try {
-      const ep = typeof entry === 'string' ? { path: entry, method: 'GET' } : entry;
-      const d = await gmgnProxy(ep.path, apiKey, { method: ep.method, body: ep.body });
-      const normalized = normalizeGMGNToken(d);
-      if (normalized && (d?.code === 0 || d?.data || normalized.token || normalized.pair || normalized.market_cap != null)) {
-        setStep('GMGN', 'done');
-        return normalized;
-      }
-    } catch(e) { continue; }
-  }
-  setStep('GMGN', 'fail');
-  return { _error: apiKey ? 'GMGN non ha restituito dati con questa chiave.' : 'GMGN richiede una chiave valida o accesso server-side approvato.' };
-}
-
-// Also fetch GMGN top traders to find KOLs
-async function fetchGMGNKols(mint) {
-  const apiKey = $('gmgnKey').value.trim();
-  try {
-    const d = await gmgnProxy(
-      '/defi/quotation/v1/tokens/top_traders/sol/'+mint+'?orderby=profit&direction=desc',
-      apiKey);
-    const traders = d?.data?.list || d?.data || [];
-    if (!Array.isArray(traders)) return [];
-    return traders.filter(t =>
-      (t.tags||[]).includes('renowned') ||
-      t.wallet_tag_v2 === 'renowned' ||
-      (t.twitter_username && t.twitter_name)
-    );
-  } catch(e) { return []; }
-}
-
-// 4. METEORA (via separate proxy)
+// 3. METEORA (via separate proxy)
 async function fetchMeteora(mint) {
   setStep('Meteora', 'loading');
   try {
@@ -432,21 +326,17 @@ async function analyze() {
   if (!mint || mint.length < 30) return alert('Inserisci un CA valido di Solana');
   $('goBtn').disabled = true;
   $('results').innerHTML = '';
-  initProgress(['RugCheck', 'Jupiter', 'GMGN', 'Meteora']);
+  initProgress(['RugCheck', 'Jupiter', 'Meteora']);
 
   // Fetch all in parallel
-  const [rugcheck, jupiter, gmgn, meteora] = await Promise.all([
+  const [rugcheck, jupiter, meteora] = await Promise.all([
     fetchRugCheck(mint),
     fetchJupiter(mint),
-    fetchGMGN(mint),
     fetchMeteora(mint),
   ]);
 
-  // Also try to get KOLs from GMGN
-  const kols = await fetchGMGNKols(mint);
-
   // Build results
-  renderResults(mint, rugcheck, jupiter, gmgn, meteora, kols);
+  renderResults(mint, rugcheck, jupiter, meteora);
   $('goBtn').disabled = false;
 }
 
@@ -457,6 +347,37 @@ function esc(s) { const d=document.createElement('div');d.textContent=s;return d
 function sh(a) { return a ? a.slice(0,6)+'…'+a.slice(-4) : '—'; }
 function fm(n,d=2) { if(n==null||isNaN(n))return'—';n=+n;if(Math.abs(n)>=1e9)return'$'+(n/1e9).toFixed(1)+'B';if(Math.abs(n)>=1e6)return'$'+(n/1e6).toFixed(1)+'M';if(Math.abs(n)>=1e3)return'$'+(n/1e3).toFixed(d)+'K';return'$'+n.toFixed(d);}
 
+function num(...values) {
+  for (const value of values) {
+    if (value == null || value === '') continue;
+    const parsed = Number(value);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  return null;
+}
+function pct(...values) {
+  for (const value of values) {
+    const parsed = num(value);
+    if (parsed == null) continue;
+    return parsed <= 1 ? parsed * 100 : parsed;
+  }
+  return null;
+}
+function yesNo(value) {
+  if (value == null) return 'N/A';
+  return value ? 'Yes' : 'No';
+}
+function ageFromTimestamp(...values) {
+  const ts = num(...values);
+  if (ts == null) return null;
+  const seconds = ts > 1e12 ? ts / 1000 : ts;
+  return (Date.now()/1000 - seconds) / 3600;
+}
+function ageDisplay(hours) {
+  if (hours == null || Number.isNaN(hours)) return 'N/A';
+  return hours < 24 ? hours.toFixed(1)+'h' : (hours/24).toFixed(1)+'d';
+}
+
 function card(label, value, displayValue, key, sub) {
   const color = getColor(key, value);
   return `<div class="card ${color}">
@@ -466,18 +387,31 @@ function card(label, value, displayValue, key, sub) {
   </div>`;
 }
 
-function renderResults(mint, rc, jup, gmgn, met, kols) {
+function renderResults(mint, rc, jup, met) {
   let h = '';
 
   // ── Token header ──
-  const name = jup?.name || gmgn?.token?.name || rc?.tokenMeta?.name || '?';
-  const symbol = jup?.symbol || gmgn?.token?.symbol || rc?.tokenMeta?.symbol || '?';
-  const logo = jup?.icon || gmgn?.token?.logo || '';
+  const name = jup?.name || rc?.tokenMeta?.name || '?';
+  const symbol = jup?.symbol || rc?.tokenMeta?.symbol || '?';
+  const logo = jup?.icon || '';
+  const gmgnUrl = 'https://gmgn.ai/sol/token/' + encodeURIComponent(mint);
+  const primaryPool = Array.isArray(met) && met.length ? [...met].sort((a,b) => (num(b?.liquidity, b?.tvl) || 0) - (num(a?.liquidity, a?.tvl) || 0))[0] : null;
+  const marketCap = num(jup?.marketCap, jup?.market_cap, jup?.fdv, jup?.mcap, rc?.tokenMeta?.marketCap);
+  const tokenAgeHours = ageFromTimestamp(jup?.createdAt, jup?.created_at, jup?.mintedAt, jup?.firstPool?.createdAt, rc?.tokenMeta?.createdAt);
+  const totalFees24h = num(primaryPool?.fees?.['24h'], primaryPool?.fees_24h, primaryPool?.fee_24h);
+  const totalLiquidity = (Array.isArray(met) ? met : []).reduce((sum, p) => sum + (num(p?.liquidity, p?.tvl) || 0), 0) || null;
+  const topH = pct(jup?.audit?.topHoldersPercentage, jup?.holderMetrics?.top10Percentage);
+  const devH = pct(jup?.audit?.devBalancePercentage, jup?.audit?.devWalletPercentage, jup?.holderMetrics?.devPercentage);
+  const snipersH = pct(jup?.audit?.snipersPercentage, jup?.audit?.sniperPercentage, jup?.holderMetrics?.snipersPercentage);
+  const freezeDisabled = jup?.audit?.freezeAuthorityDisabled;
+  const mintDisabled = jup?.audit?.mintAuthorityDisabled;
+  const dexLabel = jup?.dex || jup?.exchange || jup?.audit?.dex || (jup?.tags?.includes('paid') ? 'Paid' : null);
   h += `<div class="token-hd">
     ${logo ? '<img src="'+esc(logo)+'" onerror="this.style.display=\'none\'">' : ''}
     <div>
       <div class="name">${esc(name)} <span class="sym">${esc(symbol)}</span></div>
       <div class="addr">${esc(mint)}</div>
+      <div class="addr" style="margin-top:6px"><a href="${gmgnUrl}" target="_blank" style="color:var(--ac2);text-decoration:none">Apri su GMGN</a></div>
     </div>
   </div>`;
 
@@ -496,60 +430,32 @@ function renderResults(mint, rc, jup, gmgn, met, kols) {
 
   h += '</div></div>';
 
-  // ── GMGN DATA ──
-  const gt = gmgn?.token || gmgn?.pair || gmgn || {};
-  h += '<div class="section"><div class="stitle"><span class="icon">🧠</span> Dati GMGN.ai</div><div class="grid">';
-
-  // Market Cap
-  const mc = gt.market_cap ?? null;
-  h += card('Market Cap', mc, mc != null ? fm(mc) : 'N/A', 'market_cap');
-
-  // Token Age
-  let ageHours = null;
-  const creation = gt.creation_timestamp || gt.open_timestamp;
-  if (creation) {
-    ageHours = (Date.now()/1000 - creation) / 3600;
-  }
-  const ageDisplay = ageHours != null ? (ageHours < 24 ? ageHours.toFixed(1)+'h' : (ageHours/24).toFixed(1)+'d') : 'N/A';
-  h += card('Token Age', ageHours, ageDisplay, 'token_age_hours');
-
-  // Total Fees
-  const fees = gt.total_fee ?? gt.gas_fee ?? null;
-  h += card('Total Fees', fees, fees != null ? Number(fees).toFixed(2)+' SOL' : 'N/A', 'total_fees_sol');
-
-  // Top Holders %
-  const topH = gt.top_10_holder_rate != null ? gt.top_10_holder_rate * 100 :
-    (jup?.audit?.topHoldersPercentage ?? null);
-  h += card('Top 10 Holders %', topH, topH != null ? topH.toFixed(1)+'%' : 'N/A', 'top_holders_pct');
-
-  // Bundlers %
-  const bundlers = gt.bundler_rate != null ? gt.bundler_rate * 100 : null;
-  h += card('Bundlers %', bundlers, bundlers != null ? bundlers.toFixed(1)+'%' : 'N/A', 'bundlers_pct');
-
-  // Phishing/Rug ratio
-  const phishing = gt.rug_ratio != null ? gt.rug_ratio * 100 :
-    (gt.rat_trader_amount_rate != null ? gt.rat_trader_amount_rate * 100 : null);
-  h += card('Rug/Phishing %', phishing, phishing != null ? phishing.toFixed(1)+'%' : 'N/A', 'phishing_pct');
-
+  // ── MARKET DATA ──
+  h += '<div class="section"><div class="stitle"><span class="icon">💰</span> Market Data</div><div class="grid">';
+  h += card('Market Cap', marketCap, marketCap != null ? fm(marketCap) : 'N/A', 'market_cap');
+  h += card('Token Age', tokenAgeHours, ageDisplay(tokenAgeHours), 'token_age_hours');
+  h += card('Total Fees 24h', totalFees24h, totalFees24h != null ? fm(totalFees24h) : 'N/A', 'total_fees_sol', primaryPool ? 'Meteora primary pool' : '');
+  h += card('Liquidity', totalLiquidity, totalLiquidity != null ? fm(totalLiquidity) : 'N/A', 'market_cap', Array.isArray(met) && met.length ? `${met.length} pools` : '');
   h += '</div></div>';
 
-  if (gmgn?._error) {
-    h += `<div class="section"><div class="err">${esc(gmgn._error)}</div></div>`;
-  }
+  // ── JUPITER AUDIT ──
+  h += '<div class="section"><div class="stitle"><span class="icon">🪐</span> Jupiter Audit</div><div class="grid">';
+  h += card('Top 10 H.', topH, topH != null ? topH.toFixed(2)+'%' : 'N/A', 'top_holders_pct');
+  h += card('Dev H.', devH, devH != null ? devH.toFixed(2)+'%' : 'N/A', 'bundlers_pct');
+  h += card('Snipers H.', snipersH, snipersH != null ? snipersH.toFixed(2)+'%' : 'N/A', 'phishing_pct');
+  h += `<div class="card ${freezeDisabled === true ? 'green' : freezeDisabled === false ? 'red' : ''}"><div class="label">Freeze Auth</div><div class="value" style="font-size:16px">${esc(yesNo(freezeDisabled === null ? null : !freezeDisabled))}</div></div>`;
+  h += `<div class="card ${mintDisabled === true ? 'green' : mintDisabled === false ? 'red' : ''}"><div class="label">Mint Auth</div><div class="value" style="font-size:16px">${esc(yesNo(mintDisabled === null ? null : !mintDisabled))}</div></div>`;
+  h += `<div class="card"><div class="label">Dex</div><div class="value" style="font-size:16px">${esc(dexLabel || 'N/A')}</div></div>`;
+  h += '</div></div>';
 
   // ── EXTRA INFO (non-scored) ──
   h += '<div class="section"><div class="stitle"><span class="icon">ℹ️</span> Info Aggiuntive</div><div class="grid">';
   const extraFields = [
-    ['Holders', gt.holder_count?.toLocaleString()],
-    ['Swaps 24h', gt.swaps?.toLocaleString()],
-    ['Volume 24h', gt.volume != null ? fm(gt.volume) : null],
-    ['Liquidità', gt.liquidity != null ? fm(gt.liquidity) : null],
-    ['Smart Degen', gt.smart_degen_count],
-    ['Renowned', gt.renowned_count],
-    ['Snipers', gt.sniper_count],
-    ['DEX', gt.exchange || gt.launchpad_platform],
-    ['Mint Auth', jup?.audit?.mintAuthorityDisabled != null ? (jup.audit.mintAuthorityDisabled ? '✅ Disabilitata' : '⚠️ Attiva') : (rc?.mintAuthority === null || rc?.renounced_mint ? '✅' : '⚠️')],
-    ['Freeze Auth', jup?.audit?.freezeAuthorityDisabled != null ? (jup.audit.freezeAuthorityDisabled ? '✅ Disabilitata' : '⚠️ Attiva') : null],
+    ['Holders', num(jup?.holderCount, jup?.holders, rc?.token?.holderCount)?.toLocaleString()],
+    ['Volume 24h', num(jup?.daily_volume, jup?.volume24h, primaryPool?.trade_volume_24h, primaryPool?.volume?.['24h']) != null ? fm(num(jup?.daily_volume, jup?.volume24h, primaryPool?.trade_volume_24h, primaryPool?.volume?.['24h'])) : null],
+    ['Primary Pool', primaryPool?.name || (primaryPool ? `${primaryPool?.token_x?.symbol || primaryPool?.mint_x_symbol || '?'} / ${primaryPool?.token_y?.symbol || primaryPool?.mint_y_symbol || '?'}` : null)],
+    ['Mint Auth', jup?.audit?.mintAuthorityDisabled != null ? (jup.audit.mintAuthorityDisabled ? 'No' : 'Active') : (rc?.mintAuthority === null || rc?.renounced_mint ? 'No' : 'Active')],
+    ['Freeze Auth', jup?.audit?.freezeAuthorityDisabled != null ? (jup.audit.freezeAuthorityDisabled ? 'No' : 'Active') : null],
     ['Verificato Jup', jup?.isVerified != null ? (jup.isVerified ? '✅ Sì' : '❌ No') : null],
     ['Tags Jup', jup?.tags?.join(', ')],
   ];
@@ -574,25 +480,7 @@ function renderResults(mint, rc, jup, gmgn, met, kols) {
     h += '</div></div>';
   }
 
-  // ── KOL LIST ──
-  h += '<div class="section"><div class="stitle"><span class="icon">👑</span> KOL Presenti (GMGN)</div>';
-  if (kols.length) {
-    h += '<div class="kol-list">';
-    kols.forEach(k => {
-      const tw = k.twitter_username ? `<a href="https://twitter.com/${esc(k.twitter_username)}" target="_blank">@${esc(k.twitter_username)}</a>` : '';
-      const name = k.twitter_name || k.name || sh(k.address);
-      const profit = k.profit != null ? fm(k.profit) : '';
-      h += `<div class="kol">
-        <span>${esc(name)}</span>
-        ${tw}
-        <span class="tag">${profit}</span>
-      </div>`;
-    });
-    h += '</div>';
-  } else {
-    h += '<p style="font-size:11px;color:var(--t2)">Nessun KOL (renowned) trovato per questo token, oppure i dati GMGN non sono disponibili.</p>';
-  }
-  h += '</div>';
+  h += '<div class="section"><div class="err">GMGN automatico è temporaneamente disattivato. Usa il link "Apri su GMGN" per controllare manualmente market cap, fees e holder details.</div></div>';
 
   // ── METEORA POOLS ──
   h += '<div class="section"><div class="stitle"><span class="icon">💧</span> Pool Meteora DLMM</div>';
