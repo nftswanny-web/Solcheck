@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SolCheck — Solana Token Analyzer</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap');
+:root{
+  --bg:#060610;--s1:#0c0c1a;--s2:#111125;--brd:#1a1a38;
+  --ac:#7c5cfc;--ac2:#a78bfa;
+  --g:#22c55e;--y:#eab308;--r:#ef4444;
+  --gbg:rgba(34,197,94,.1);--ybg:rgba(234,179,8,.1);--rbg:rgba(239,68,68,.1);
+  --gbd:rgba(34,197,94,.3);--ybd:rgba(234,179,8,.3);--rbd:rgba(239,68,68,.3);
+  --t:#e0e0f0;--t2:#6a6a90;--in:#0e0e20;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-serif;min-height:100vh}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:var(--brd);border-radius:4px}
+
+/* ─── HEADER ─── */
+.hd{background:linear-gradient(180deg,#0d0d1e,var(--bg));border-bottom:1px solid var(--brd);padding:20px 24px;text-align:center}
+.hd h1{font-size:22px;font-weight:800;background:linear-gradient(135deg,var(--ac),var(--ac2),#e879f9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-.02em}
+.hd p{font-size:10px;color:var(--t2);margin-top:2px}
+
+/* ─── SEARCH BAR ─── */
+.search{max-width:680px;margin:20px auto;padding:0 20px}
+.search-row{display:flex;gap:8px}
+.search-row input{flex:1;padding:12px 16px;border-radius:10px;border:1px solid var(--brd);background:var(--in);color:var(--t);font:14px 'JetBrains Mono',monospace;outline:none;transition:border-color .2s}
+.search-row input:focus{border-color:var(--ac)}
+.search-row input::placeholder{color:var(--t2)}
+.go{padding:12px 28px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff;font:700 13px 'DM Sans',sans-serif;cursor:pointer;text-transform:uppercase;letter-spacing:.04em;transition:opacity .2s}
+.go:hover{opacity:.9}.go:disabled{opacity:.3;cursor:wait}
+.settings-btn{padding:12px;border-radius:10px;border:1px solid var(--brd);background:var(--in);color:var(--t2);font-size:16px;cursor:pointer;transition:all .15s;line-height:1}
+.settings-btn:hover{border-color:var(--ac);color:var(--t)}
+.api-row{display:flex;gap:8px;margin-top:8px;align-items:center}
+.api-row label{font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.04em}
+.api-row input{flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--brd);background:var(--in);color:var(--t);font:11px 'JetBrains Mono',monospace;outline:none}
+
+/* ─── PROGRESS ─── */
+.progress{max-width:680px;margin:0 auto;padding:10px 20px}
+.pbar{height:3px;background:var(--brd);border-radius:2px;overflow:hidden;margin-bottom:6px}
+.pbar-fill{height:100%;background:linear-gradient(90deg,var(--ac),var(--ac2));transition:width .3s;width:0%}
+.pstatus{font-size:10px;color:var(--t2);display:flex;gap:12px;flex-wrap:wrap}
+.pstatus .done{color:var(--g)}.pstatus .loading{color:var(--y)}.pstatus .fail{color:var(--r)}
+
+/* ─── RESULTS ─── */
+.results{max-width:900px;margin:20px auto;padding:0 20px}
+.section{margin-bottom:16px}
+.stitle{font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.stitle .icon{font-size:14px}
+
+/* Score cards grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:8px}
+.card{border-radius:10px;padding:12px 14px;border:1px solid var(--brd);background:var(--s1);transition:all .2s}
+.card .label{font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.card .value{font-size:18px;font-weight:800;font-family:'JetBrains Mono',monospace}
+.card .sub{font-size:9px;color:var(--t2);margin-top:2px}
+.card.green{background:var(--gbg);border-color:var(--gbd)}.card.green .value{color:var(--g)}
+.card.yellow{background:var(--ybg);border-color:var(--ybd)}.card.yellow .value{color:var(--y)}
+.card.red{background:var(--rbg);border-color:var(--rbd)}.card.red .value{color:var(--r)}
+
+/* Token header */
+.token-hd{display:flex;align-items:center;gap:12px;background:var(--s1);border:1px solid var(--brd);border-radius:12px;padding:14px 18px;margin-bottom:16px}
+.token-hd img{width:40px;height:40px;border-radius:10px}
+.token-hd .name{font-size:18px;font-weight:800}
+.token-hd .sym{font-size:12px;color:var(--ac2);font-weight:600}
+.token-hd .addr{font-size:10px;color:var(--t2);font-family:'JetBrains Mono',monospace;word-break:break-all}
+
+/* KOL list */
+.kol-list{display:flex;flex-wrap:wrap;gap:6px}
+.kol{display:inline-flex;align-items:center;gap:5px;background:var(--s2);border:1px solid var(--brd);border-radius:7px;padding:5px 10px;font-size:11px;font-weight:600;transition:border-color .15s}
+.kol:hover{border-color:var(--ac)}
+.kol a{color:var(--ac2);text-decoration:none}.kol a:hover{text-decoration:underline}
+.kol .tag{font-size:8px;padding:1px 5px;border-radius:3px;background:rgba(255,109,0,.2);color:#ff6d00;font-weight:700;text-transform:uppercase}
+
+/* Meteora table */
+.tw{overflow-x:auto;margin-top:6px}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{text-align:left;padding:7px 8px;color:var(--t2);font-weight:600;font-size:9px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--brd);white-space:nowrap}
+td{padding:8px;border-bottom:1px solid rgba(26,26,56,.4);vertical-align:middle;font-family:'JetBrains Mono',monospace;font-size:10px}
+tr:hover td{background:rgba(124,92,252,.03)}
+
+/* Settings panel */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center;padding:20px}
+.overlay.open{display:flex}
+.panel{background:var(--s1);border:1px solid var(--brd);border-radius:14px;padding:22px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto}
+.panel h2{font-size:16px;font-weight:800;margin-bottom:14px}
+.panel .close{float:right;background:none;border:none;color:var(--t2);font-size:20px;cursor:pointer}
+.setting-row{display:grid;grid-template-columns:1fr 70px 70px 70px;gap:6px;align-items:center;margin-bottom:8px;font-size:11px}
+.setting-row .slbl{font-weight:600;font-size:11px}
+.setting-row input{padding:5px 7px;border-radius:5px;border:1px solid var(--brd);background:var(--in);color:var(--t);font:11px 'JetBrains Mono',monospace;outline:none;width:100%;text-align:center}
+.shead{display:grid;grid-template-columns:1fr 70px 70px 70px;gap:6px;font-size:8px;color:var(--t2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;text-align:center}
+.shead span:first-child{text-align:left}
+.save-btn{margin-top:14px;padding:8px 24px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff;font:700 12px 'DM Sans',sans-serif;cursor:pointer}
+.note{font-size:9px;color:var(--t2);margin-top:8px;line-height:1.5}
+
+.err{background:var(--rbg);border:1px solid var(--rbd);border-radius:8px;padding:10px 14px;color:var(--r);font-size:12px;margin-bottom:10px}
+.empty{text-align:center;padding:60px 20px;color:var(--t2)}
+.empty big{font-size:44px;display:block;margin-bottom:8px;opacity:.2}
+.ft{padding:14px;border-top:1px solid var(--brd);text-align:center;color:var(--t2);font-size:8px;margin-top:30px}
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <h1>SolCheck</h1>
+  <p>Analisi token Solana · RugCheck · Jupiter · GMGN · Meteora</p>
+</div>
+
+<div class="search">
+  <div class="search-row">
+    <input type="text" id="ca" placeholder="Inserisci Contract Address (CA) del token Solana…" spellcheck="false">
+    <button class="settings-btn" onclick="openSettings()" title="Settings">⚙️</button>
+    <button class="go" id="goBtn" onclick="analyze()">Analizza</button>
+  </div>
+  <div class="api-row">
+    <label>GMGN Key:</label>
+    <input type="password" id="gmgnKey" value="gmgn_bd4e75687b81fded04092d42b407645d" placeholder="gmgn_...">
+  </div>
+</div>
+
+<div class="progress" id="progressBox" style="display:none">
+  <div class="pbar"><div class="pbar-fill" id="pbarFill"></div></div>
+  <div class="pstatus" id="pstatus"></div>
+</div>
+
+<div class="results" id="results">
+  <div class="empty">
+    <big>🔍</big>
+    <p style="font-size:14px;font-weight:600">Inserisci un CA e premi Analizza</p>
+    <p style="font-size:11px;margin-top:6px">Raccoglieremo dati da 4 fonti e ti mostriamo tutto con semaforo verde/giallo/rosso</p>
+  </div>
+</div>
+
+<div class="ft">SolCheck v1.0 — Dati da RugCheck, Jupiter, GMGN.ai, Meteora — Non è consulenza finanziaria. DYOR.</div>
+
+<!-- SETTINGS OVERLAY -->
+<div class="overlay" id="settingsOverlay">
+<div class="panel">
+  <button class="close" onclick="closeSettings()">✕</button>
+  <h2>⚙️ Impostazioni Range</h2>
+  <p class="note" style="margin-bottom:12px">Imposta i range per i 3 colori. Valori ≤ Verde = 🟢, tra Verde e Giallo = 🟡, &gt; Giallo = 🔴.<br>Per parametri "inverse" (dove alto = buono, es. Organic Score), i colori si invertono automaticamente.</p>
+  <div class="shead"><span>Parametro</span><span>🟢 max</span><span>🟡 max</span><span>🔴 da</span></div>
+  <div id="settingsRows"></div>
+  <button class="save-btn" onclick="saveSettings()">💾 Salva</button>
+  <button class="save-btn" style="background:var(--in);border:1px solid var(--brd);margin-left:8px" onclick="resetSettings()">🔄 Reset</button>
+</div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════
+   CONFIG & DEFAULTS
+   ═══════════════════════════════════════════ */
+const DEFAULT_SETTINGS = {
+  // name: [greenMax, yellowMax, direction]  direction: 'asc'=lower is better, 'desc'=higher is better
+  rugcheck_score:     { g: 3000, y: 8000, dir: 'asc', label: 'RugCheck Score' },
+  organic_score:      { g: 80,   y: 50,   dir: 'desc', label: 'Jupiter Organic Score' },
+  market_cap:         { g: 500000, y: 100000, dir: 'desc', label: 'Market Cap (USD)' },
+  token_age_hours:    { g: 168,  y: 24,   dir: 'desc', label: 'Token Age (ore)' },
+  top_holders_pct:    { g: 15,   y: 30,   dir: 'asc', label: 'Top Holders %' },
+  bundlers_pct:       { g: 5,    y: 15,   dir: 'asc', label: 'Bundlers %' },
+  phishing_pct:       { g: 2,    y: 5,    dir: 'asc', label: 'Phishing %' },
+  total_fees_sol:     { g: 100,  y: 20,   dir: 'desc', label: 'Total Fees (SOL)' },
+};
+
+let settings = {};
+function loadSettings() {
+  try { settings = JSON.parse(localStorage.getItem('solcheck_settings')) || {}; } catch(e) {}
+  for (const [k,v] of Object.entries(DEFAULT_SETTINGS)) {
+    if (!settings[k]) settings[k] = { g: v.g, y: v.y };
+  }
+}
+function saveSettingsToStorage() { localStorage.setItem('solcheck_settings', JSON.stringify(settings)); }
+loadSettings();
+
+/* Color logic */
+function getColor(key, value) {
+  if (value == null || isNaN(value)) return '';
+  const s = settings[key] || DEFAULT_SETTINGS[key];
+  const def = DEFAULT_SETTINGS[key];
+  const gMax = s.g, yMax = s.y;
+  if (def.dir === 'asc') {
+    // lower = better: <=g green, <=y yellow, else red
+    if (value <= gMax) return 'green';
+    if (value <= yMax) return 'yellow';
+    return 'red';
+  } else {
+    // higher = better: >=g green, >=y yellow, else red
+    if (value >= gMax) return 'green';
+    if (value >= yMax) return 'yellow';
+    return 'red';
+  }
+}
+
+/* ═══════════════════════════════════════════
+   SETTINGS PANEL
+   ═══════════════════════════════════════════ */
+function openSettings() {
+  document.getElementById('settingsOverlay').classList.add('open');
+  renderSettingsRows();
+}
+function closeSettings() { document.getElementById('settingsOverlay').classList.remove('open'); }
+function renderSettingsRows() {
+  let h = '';
+  for (const [k, def] of Object.entries(DEFAULT_SETTINGS)) {
+    const s = settings[k] || { g: def.g, y: def.y };
+    const arrow = def.dir === 'asc' ? '↑' : '↓';
+    h += `<div class="setting-row">
+      <span class="slbl">${def.label} ${arrow}</span>
+      <input type="number" id="s_${k}_g" value="${s.g}">
+      <input type="number" id="s_${k}_y" value="${s.y}">
+      <input value="auto" disabled style="color:var(--t2);text-align:center">
+    </div>`;
+  }
+  document.getElementById('settingsRows').innerHTML = h;
+}
+function saveSettings() {
+  for (const k of Object.keys(DEFAULT_SETTINGS)) {
+    const g = Number(document.getElementById('s_'+k+'_g').value);
+    const y = Number(document.getElementById('s_'+k+'_y').value);
+    settings[k] = { g, y };
+  }
+  saveSettingsToStorage();
+  closeSettings();
+  alert('Impostazioni salvate!');
+}
+function resetSettings() {
+  settings = {};
+  for (const [k,v] of Object.entries(DEFAULT_SETTINGS)) settings[k] = { g: v.g, y: v.y };
+  saveSettingsToStorage();
+  renderSettingsRows();
+}
+
+/* ═══════════════════════════════════════════
+   API CALLS
+   ═══════════════════════════════════════════ */
+const $=id=>document.getElementById(id);
+
+// Progress tracking
+let steps = {};
+function initProgress(names) {
+  steps = {};
+  names.forEach(n => steps[n] = 'loading');
+  $('progressBox').style.display = 'block';
+  updateProgress();
+}
+function setStep(name, state) { steps[name] = state; updateProgress(); }
+function updateProgress() {
+  const total = Object.keys(steps).length;
+  const done = Object.values(steps).filter(s=>s==='done'||s==='fail').length;
+  $('pbarFill').style.width = (done/total*100)+'%';
+  let h = '';
+  for (const [n,s] of Object.entries(steps)) {
+    const cls = s==='done'?'done':s==='fail'?'fail':'loading';
+    const icon = s==='done'?'✓':s==='fail'?'✗':'⟳';
+    h += `<span class="${cls}">${icon} ${n}</span>`;
+  }
+  $('pstatus').innerHTML = h;
+}
+
+// 1. RUGCHECK
+async function fetchRugCheck(mint) {
+  setStep('RugCheck', 'loading');
+  try {
+    const r = await fetch('https://api.rugcheck.xyz/v1/tokens/'+mint+'/report');
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    const d = await r.json();
+    setStep('RugCheck', 'done');
+    return d;
+  } catch(e) { setStep('RugCheck', 'fail'); return null; }
+}
+
+// 2. JUPITER
+async function fetchJupiter(mint) {
+  setStep('Jupiter', 'loading');
+  try {
+    const r = await fetch('https://lite-api.jup.ag/tokens/v2/search?query='+mint);
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    const d = await r.json();
+    setStep('Jupiter', 'done');
+    // Find the exact match
+    if (Array.isArray(d)) return d.find(t => t.id === mint) || d[0] || null;
+    return d;
+  } catch(e) { setStep('Jupiter', 'fail'); return null; }
+}
+
+// 3. GMGN (via our Vercel proxy)
+async function fetchGMGN(mint) {
+  setStep('GMGN', 'loading');
+  const apiKey = $('gmgnKey').value.trim();
+  try {
+    // Try multiple endpoints
+    const endpoints = [
+      '/api/v1/mutil_window_token_info/sol/'+mint,
+      '/defi/quotation/v1/tokens/sol/'+mint,
+    ];
+    for (const ep of endpoints) {
+      try {
+        let url = '/api/gmgn?path='+encodeURIComponent(ep);
+        if (apiKey) url += '&apikey='+encodeURIComponent(apiKey);
+        const r = await fetch(url, { signal: AbortSignal.timeout(15000) });
+        if (!r.ok) continue;
+        const d = await r.json();
+        if (d.code === 0 || d.data) { setStep('GMGN', 'done'); return d.data || d; }
+      } catch(e) { continue; }
+    }
+    // Also try the rank endpoint to get token data
+    try {
+      let url = '/api/gmgn?path='+encodeURIComponent('/defi/quotation/v1/rank/sol/swaps/24h?orderby=swaps&direction=desc&filters[]=renounced');
+      if (apiKey) url += '&apikey='+encodeURIComponent(apiKey);
+      const r = await fetch(url, { signal: AbortSignal.timeout(15000) });
+      if (r.ok) {
+        const d = await r.json();
+        const found = (d.data?.rank||[]).find(t => t.address === mint);
+        if (found) { setStep('GMGN', 'done'); return { token: found }; }
+      }
+    } catch(e) {}
+    setStep('GMGN', 'fail');
+    return null;
+  } catch(e) { setStep('GMGN', 'fail'); return null; }
+}
+
+// Also fetch GMGN top traders to find KOLs
+async function fetchGMGNKols(mint) {
+  const apiKey = $('gmgnKey').value.trim();
+  try {
+    let url = '/api/gmgn?path='+encodeURIComponent('/defi/quotation/v1/tokens/top_traders/sol/'+mint+'?orderby=profit&direction=desc');
+    if (apiKey) url += '&apikey='+encodeURIComponent(apiKey);
+    const r = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    if (!r.ok) return [];
+    const d = await r.json();
+    // Filter for KOLs (renowned tag)
+    const traders = d.data?.list || d.data || [];
+    if (!Array.isArray(traders)) return [];
+    return traders.filter(t =>
+      (t.tags||[]).includes('renowned') ||
+      t.wallet_tag_v2 === 'renowned' ||
+      (t.twitter_username && t.twitter_name)
+    );
+  } catch(e) { return []; }
+}
+
+// 4. METEORA
+async function fetchMeteora(mint) {
+  setStep('Meteora', 'loading');
+  try {
+    const r = await fetch('https://dlmm-api.meteora.ag/pair/all_by_groups?page=0&limit=50&sort_key=liquidity&order_by=desc');
+    if (!r.ok) {
+      // fallback to /pair/all
+      const r2 = await fetch('https://dlmm-api.meteora.ag/pair/all');
+      if (!r2.ok) throw new Error('HTTP '+r2.status);
+      const all = await r2.json();
+      const pools = all.filter(p => p.mint_x === mint || p.mint_y === mint);
+      setStep('Meteora', pools.length ? 'done' : 'fail');
+      return pools;
+    }
+    const data = await r.json();
+    // Search in groups
+    const groups = data.groups || data || [];
+    let pools = [];
+    if (Array.isArray(groups)) {
+      for (const g of groups) {
+        const gpools = g.pairs || g.pools || [];
+        pools.push(...gpools.filter(p => p.mint_x === mint || p.mint_y === mint));
+      }
+    }
+    // If not found in groups, try direct pair/all
+    if (!pools.length) {
+      const r2 = await fetch('https://dlmm-api.meteora.ag/pair/all');
+      if (r2.ok) {
+        const all = await r2.json();
+        pools = all.filter(p => p.mint_x === mint || p.mint_y === mint);
+      }
+    }
+    setStep('Meteora', pools.length ? 'done' : 'fail');
+    return pools;
+  } catch(e) { setStep('Meteora', 'fail'); return []; }
+}
+
+/* ═══════════════════════════════════════════
+   MAIN ANALYZE
+   ═══════════════════════════════════════════ */
+async function analyze() {
+  const mint = $('ca').value.trim();
+  if (!mint || mint.length < 30) return alert('Inserisci un CA valido di Solana');
+  $('goBtn').disabled = true;
+  $('results').innerHTML = '';
+  initProgress(['RugCheck', 'Jupiter', 'GMGN', 'Meteora']);
+
+  // Fetch all in parallel
+  const [rugcheck, jupiter, gmgn, meteora] = await Promise.all([
+    fetchRugCheck(mint),
+    fetchJupiter(mint),
+    fetchGMGN(mint),
+    fetchMeteora(mint),
+  ]);
+
+  // Also try to get KOLs from GMGN
+  const kols = await fetchGMGNKols(mint);
+
+  // Build results
+  renderResults(mint, rugcheck, jupiter, gmgn, meteora, kols);
+  $('goBtn').disabled = false;
+}
+
+/* ═══════════════════════════════════════════
+   RENDER
+   ═══════════════════════════════════════════ */
+function esc(s) { const d=document.createElement('div');d.textContent=s;return d.innerHTML; }
+function sh(a) { return a ? a.slice(0,6)+'…'+a.slice(-4) : '—'; }
+function fm(n,d=2) { if(n==null||isNaN(n))return'—';n=+n;if(Math.abs(n)>=1e9)return'$'+(n/1e9).toFixed(1)+'B';if(Math.abs(n)>=1e6)return'$'+(n/1e6).toFixed(1)+'M';if(Math.abs(n)>=1e3)return'$'+(n/1e3).toFixed(d)+'K';return'$'+n.toFixed(d);}
+
+function card(label, value, displayValue, key, sub) {
+  const color = getColor(key, value);
+  return `<div class="card ${color}">
+    <div class="label">${label}</div>
+    <div class="value">${displayValue}</div>
+    ${sub ? '<div class="sub">'+sub+'</div>' : ''}
+  </div>`;
+}
+
+function renderResults(mint, rc, jup, gmgn, met, kols) {
+  let h = '';
+
+  // ── Token header ──
+  const name = jup?.name || gmgn?.token?.name || rc?.tokenMeta?.name || '?';
+  const symbol = jup?.symbol || gmgn?.token?.symbol || rc?.tokenMeta?.symbol || '?';
+  const logo = jup?.icon || gmgn?.token?.logo || '';
+  h += `<div class="token-hd">
+    ${logo ? '<img src="'+esc(logo)+'" onerror="this.style.display=\'none\'">' : ''}
+    <div>
+      <div class="name">${esc(name)} <span class="sym">${esc(symbol)}</span></div>
+      <div class="addr">${esc(mint)}</div>
+    </div>
+  </div>`;
+
+  // ── MAIN SCORES ──
+  h += '<div class="section"><div class="stitle"><span class="icon">📊</span> Punteggi Principali</div><div class="grid">';
+
+  // RugCheck score
+  const rcScore = rc?.score ?? null;
+  h += card('RugCheck Score', rcScore, rcScore != null ? rcScore.toLocaleString() : 'N/A', 'rugcheck_score',
+    rc?.result || '');
+
+  // Jupiter Organic Score
+  const orgScore = jup?.organicScore ?? null;
+  h += card('Organic Score', orgScore, orgScore != null ? orgScore.toFixed(1) : 'N/A', 'organic_score',
+    jup?.organicScoreLabel || '');
+
+  h += '</div></div>';
+
+  // ── GMGN DATA ──
+  const gt = gmgn?.token || gmgn?.pair || gmgn || {};
+  h += '<div class="section"><div class="stitle"><span class="icon">🧠</span> Dati GMGN.ai</div><div class="grid">';
+
+  // Market Cap
+  const mc = gt.market_cap ?? null;
+  h += card('Market Cap', mc, mc != null ? fm(mc) : 'N/A', 'market_cap');
+
+  // Token Age
+  let ageHours = null;
+  const creation = gt.creation_timestamp || gt.open_timestamp;
+  if (creation) {
+    ageHours = (Date.now()/1000 - creation) / 3600;
+  }
+  const ageDisplay = ageHours != null ? (ageHours < 24 ? ageHours.toFixed(1)+'h' : (ageHours/24).toFixed(1)+'d') : 'N/A';
+  h += card('Token Age', ageHours, ageDisplay, 'token_age_hours');
+
+  // Total Fees
+  const fees = gt.total_fee ?? gt.gas_fee ?? null;
+  h += card('Total Fees', fees, fees != null ? Number(fees).toFixed(2)+' SOL' : 'N/A', 'total_fees_sol');
+
+  // Top Holders %
+  const topH = gt.top_10_holder_rate != null ? gt.top_10_holder_rate * 100 :
+    (jup?.audit?.topHoldersPercentage ?? null);
+  h += card('Top 10 Holders %', topH, topH != null ? topH.toFixed(1)+'%' : 'N/A', 'top_holders_pct');
+
+  // Bundlers %
+  const bundlers = gt.bundler_rate != null ? gt.bundler_rate * 100 : null;
+  h += card('Bundlers %', bundlers, bundlers != null ? bundlers.toFixed(1)+'%' : 'N/A', 'bundlers_pct');
+
+  // Phishing/Rug ratio
+  const phishing = gt.rug_ratio != null ? gt.rug_ratio * 100 :
+    (gt.rat_trader_amount_rate != null ? gt.rat_trader_amount_rate * 100 : null);
+  h += card('Rug/Phishing %', phishing, phishing != null ? phishing.toFixed(1)+'%' : 'N/A', 'phishing_pct');
+
+  h += '</div></div>';
+
+  // ── EXTRA INFO (non-scored) ──
+  h += '<div class="section"><div class="stitle"><span class="icon">ℹ️</span> Info Aggiuntive</div><div class="grid">';
+  const extraFields = [
+    ['Holders', gt.holder_count?.toLocaleString()],
+    ['Swaps 24h', gt.swaps?.toLocaleString()],
+    ['Volume 24h', gt.volume != null ? fm(gt.volume) : null],
+    ['Liquidità', gt.liquidity != null ? fm(gt.liquidity) : null],
+    ['Smart Degen', gt.smart_degen_count],
+    ['Renowned', gt.renowned_count],
+    ['Snipers', gt.sniper_count],
+    ['DEX', gt.exchange || gt.launchpad_platform],
+    ['Mint Auth', jup?.audit?.mintAuthorityDisabled != null ? (jup.audit.mintAuthorityDisabled ? '✅ Disabilitata' : '⚠️ Attiva') : (rc?.mintAuthority === null || rc?.renounced_mint ? '✅' : '⚠️')],
+    ['Freeze Auth', jup?.audit?.freezeAuthorityDisabled != null ? (jup.audit.freezeAuthorityDisabled ? '✅ Disabilitata' : '⚠️ Attiva') : null],
+    ['Verificato Jup', jup?.isVerified != null ? (jup.isVerified ? '✅ Sì' : '❌ No') : null],
+    ['Tags Jup', jup?.tags?.join(', ')],
+  ];
+  extraFields.forEach(([label, val]) => {
+    if (val != null && val !== '' && val !== undefined) {
+      h += `<div class="card"><div class="label">${label}</div><div class="value" style="font-size:13px;color:var(--t)">${esc(String(val))}</div></div>`;
+    }
+  });
+  h += '</div></div>';
+
+  // ── RUGCHECK RISKS ──
+  if (rc?.risks?.length) {
+    h += '<div class="section"><div class="stitle"><span class="icon">⚠️</span> RugCheck Rischi</div><div class="grid">';
+    rc.risks.forEach(r => {
+      const col = r.level === 'danger' ? 'red' : r.level === 'warn' ? 'yellow' : '';
+      h += `<div class="card ${col}">
+        <div class="label">${esc(r.name||'Risk')}</div>
+        <div class="value" style="font-size:11px;color:inherit">${esc(r.description||'')}</div>
+        <div class="sub">Score: ${r.score||0} · Level: ${r.level||'?'}</div>
+      </div>`;
+    });
+    h += '</div></div>';
+  }
+
+  // ── KOL LIST ──
+  h += '<div class="section"><div class="stitle"><span class="icon">👑</span> KOL Presenti (GMGN)</div>';
+  if (kols.length) {
+    h += '<div class="kol-list">';
+    kols.forEach(k => {
+      const tw = k.twitter_username ? `<a href="https://twitter.com/${esc(k.twitter_username)}" target="_blank">@${esc(k.twitter_username)}</a>` : '';
+      const name = k.twitter_name || k.name || sh(k.address);
+      const profit = k.profit != null ? fm(k.profit) : '';
+      h += `<div class="kol">
+        <span>${esc(name)}</span>
+        ${tw}
+        <span class="tag">${profit}</span>
+      </div>`;
+    });
+    h += '</div>';
+  } else {
+    h += '<p style="font-size:11px;color:var(--t2)">Nessun KOL (renowned) trovato per questo token, oppure i dati GMGN non sono disponibili.</p>';
+  }
+  h += '</div>';
+
+  // ── METEORA POOLS ──
+  h += '<div class="section"><div class="stitle"><span class="icon">💧</span> Pool Meteora DLMM</div>';
+  if (met && met.length) {
+    h += '<div class="tw"><table><thead><tr>';
+    ['Pool', 'Pair', 'Bin Step', 'Base Fee', 'TVL (USD)', 'Volume 24h', 'Fees 24h', 'Fee/TVL %', 'Liquidità'].forEach(c => h += '<th>'+c+'</th>');
+    h += '</tr></thead><tbody>';
+    met.forEach(p => {
+      const tvl = p.liquidity || p.tvl || 0;
+      const vol = p.trade_volume_24h || p.volume_24h || 0;
+      const fees = p.fees_24h || p.fee_24h || 0;
+      const feeTvl = tvl > 0 ? (fees / tvl * 100) : 0;
+      h += `<tr>
+        <td><a href="https://app.meteora.ag/dlmm/${esc(p.address||p.pair_address||'')}" target="_blank" style="color:var(--ac2);text-decoration:none">${sh(p.address||p.pair_address||'')}</a></td>
+        <td>${esc(p.name || ((p.mint_x_symbol||'?')+'/'+(p.mint_y_symbol||'?')))}</td>
+        <td>${p.bin_step||'—'}</td>
+        <td>${p.base_fee_percentage != null ? p.base_fee_percentage+'%' : '—'}</td>
+        <td>${fm(tvl)}</td>
+        <td>${fm(vol)}</td>
+        <td>${fm(fees)}</td>
+        <td style="font-weight:700;color:${feeTvl>1?'var(--g)':feeTvl>0.3?'var(--y)':'var(--t2)'}">${feeTvl.toFixed(2)}%</td>
+        <td>${fm(p.liquidity)}</td>
+      </tr>`;
+    });
+    h += '</tbody></table></div>';
+  } else {
+    h += '<p style="font-size:11px;color:var(--t2)">Nessuna pool Meteora DLMM trovata per questo token.</p>';
+  }
+  h += '</div>';
+
+  $('results').innerHTML = h;
+}
+
+/* ═══════════════════════════════════════════
+   KEYBOARD
+   ═══════════════════════════════════════════ */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.activeElement === $('ca') && !$('goBtn').disabled) analyze();
+  if (e.key === 'Escape') closeSettings();
+});
+</script>
+</body>
+</html>
