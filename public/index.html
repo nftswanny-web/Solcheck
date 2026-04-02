@@ -285,11 +285,17 @@ async function fetchJupiter(mint) {
   } catch(e) { setStep('Jupiter', 'fail'); return null; }
 }
 
-// Helper: call our proxy
-async function proxyFetch(target, path, apiKey) {
-  let url = '/api/gmgn?target='+target+'&path='+encodeURIComponent(path);
+// Helper: call our proxies
+async function gmgnProxy(path, apiKey) {
+  let url = '/api/gmgn?path='+encodeURIComponent(path);
   if (apiKey) url += '&apikey='+encodeURIComponent(apiKey);
   const r = await fetch(url, { signal: AbortSignal.timeout(20000) });
+  if (!r.ok) throw new Error('HTTP '+r.status);
+  return await r.json();
+}
+async function meteoraProxy(path) {
+  const url = '/api/meteora?path='+encodeURIComponent(path || '/pair/all');
+  const r = await fetch(url, { signal: AbortSignal.timeout(30000) });
   if (!r.ok) throw new Error('HTTP '+r.status);
   return await r.json();
 }
@@ -298,7 +304,6 @@ async function proxyFetch(target, path, apiKey) {
 async function fetchGMGN(mint) {
   setStep('GMGN', 'loading');
   const apiKey = $('gmgnKey').value.trim();
-  // Try multiple GMGN endpoints in order
   const endpoints = [
     '/api/v1/mutil_window_token_info/sol/'+mint,
     '/api/v1/token_info/sol/'+mint,
@@ -306,7 +311,7 @@ async function fetchGMGN(mint) {
   ];
   for (const ep of endpoints) {
     try {
-      const d = await proxyFetch('gmgn', ep, apiKey);
+      const d = await gmgnProxy(ep, apiKey);
       if (d && (d.code === 0 || d.data || d.token)) {
         setStep('GMGN', 'done');
         return d.data || d;
@@ -321,7 +326,7 @@ async function fetchGMGN(mint) {
 async function fetchGMGNKols(mint) {
   const apiKey = $('gmgnKey').value.trim();
   try {
-    const d = await proxyFetch('gmgn',
+    const d = await gmgnProxy(
       '/defi/quotation/v1/tokens/top_traders/sol/'+mint+'?orderby=profit&direction=desc',
       apiKey);
     const traders = d?.data?.list || d?.data || [];
@@ -334,12 +339,11 @@ async function fetchGMGNKols(mint) {
   } catch(e) { return []; }
 }
 
-// 4. METEORA (via proxy to avoid CORS)
+// 4. METEORA (via separate proxy)
 async function fetchMeteora(mint) {
   setStep('Meteora', 'loading');
   try {
-    // Use our proxy for Meteora too (CORS blocked on direct calls)
-    const d = await proxyFetch('meteora', '/pair/all');
+    const d = await meteoraProxy('/pair/all');
     let pools = [];
     if (Array.isArray(d)) {
       pools = d.filter(p => p.mint_x === mint || p.mint_y === mint);
