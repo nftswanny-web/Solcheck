@@ -285,53 +285,46 @@ async function fetchJupiter(mint) {
   } catch(e) { setStep('Jupiter', 'fail'); return null; }
 }
 
+// Helper: call our proxy
+async function proxyFetch(target, path, apiKey) {
+  let url = '/api/gmgn?target='+target+'&path='+encodeURIComponent(path);
+  if (apiKey) url += '&apikey='+encodeURIComponent(apiKey);
+  const r = await fetch(url, { signal: AbortSignal.timeout(20000) });
+  if (!r.ok) throw new Error('HTTP '+r.status);
+  return await r.json();
+}
+
 // 3. GMGN (via our Vercel proxy)
 async function fetchGMGN(mint) {
   setStep('GMGN', 'loading');
   const apiKey = $('gmgnKey').value.trim();
-  try {
-    // Try multiple endpoints
-    const endpoints = [
-      '/api/v1/mutil_window_token_info/sol/'+mint,
-      '/defi/quotation/v1/tokens/sol/'+mint,
-    ];
-    for (const ep of endpoints) {
-      try {
-        let url = '/api/gmgn?path='+encodeURIComponent(ep);
-        if (apiKey) url += '&apikey='+encodeURIComponent(apiKey);
-        const r = await fetch(url, { signal: AbortSignal.timeout(15000) });
-        if (!r.ok) continue;
-        const d = await r.json();
-        if (d.code === 0 || d.data) { setStep('GMGN', 'done'); return d.data || d; }
-      } catch(e) { continue; }
-    }
-    // Also try the rank endpoint to get token data
+  // Try multiple GMGN endpoints in order
+  const endpoints = [
+    '/api/v1/mutil_window_token_info/sol/'+mint,
+    '/api/v1/token_info/sol/'+mint,
+    '/defi/quotation/v1/tokens/sol/'+mint,
+  ];
+  for (const ep of endpoints) {
     try {
-      let url = '/api/gmgn?path='+encodeURIComponent('/defi/quotation/v1/rank/sol/swaps/24h?orderby=swaps&direction=desc&filters[]=renounced');
-      if (apiKey) url += '&apikey='+encodeURIComponent(apiKey);
-      const r = await fetch(url, { signal: AbortSignal.timeout(15000) });
-      if (r.ok) {
-        const d = await r.json();
-        const found = (d.data?.rank||[]).find(t => t.address === mint);
-        if (found) { setStep('GMGN', 'done'); return { token: found }; }
+      const d = await proxyFetch('gmgn', ep, apiKey);
+      if (d && (d.code === 0 || d.data || d.token)) {
+        setStep('GMGN', 'done');
+        return d.data || d;
       }
-    } catch(e) {}
-    setStep('GMGN', 'fail');
-    return null;
-  } catch(e) { setStep('GMGN', 'fail'); return null; }
+    } catch(e) { continue; }
+  }
+  setStep('GMGN', 'fail');
+  return null;
 }
 
 // Also fetch GMGN top traders to find KOLs
 async function fetchGMGNKols(mint) {
   const apiKey = $('gmgnKey').value.trim();
   try {
-    let url = '/api/gmgn?path='+encodeURIComponent('/defi/quotation/v1/tokens/top_traders/sol/'+mint+'?orderby=profit&direction=desc');
-    if (apiKey) url += '&apikey='+encodeURIComponent(apiKey);
-    const r = await fetch(url, { signal: AbortSignal.timeout(15000) });
-    if (!r.ok) return [];
-    const d = await r.json();
-    // Filter for KOLs (renowned tag)
-    const traders = d.data?.list || d.data || [];
+    const d = await proxyFetch('gmgn',
+      '/defi/quotation/v1/tokens/top_traders/sol/'+mint+'?orderby=profit&direction=desc',
+      apiKey);
+    const traders = d?.data?.list || d?.data || [];
     if (!Array.isArray(traders)) return [];
     return traders.filter(t =>
       (t.tags||[]).includes('renowned') ||
@@ -341,37 +334,15 @@ async function fetchGMGNKols(mint) {
   } catch(e) { return []; }
 }
 
-// 4. METEORA
+// 4. METEORA (via proxy to avoid CORS)
 async function fetchMeteora(mint) {
   setStep('Meteora', 'loading');
   try {
-    const r = await fetch('https://dlmm-api.meteora.ag/pair/all_by_groups?page=0&limit=50&sort_key=liquidity&order_by=desc');
-    if (!r.ok) {
-      // fallback to /pair/all
-      const r2 = await fetch('https://dlmm-api.meteora.ag/pair/all');
-      if (!r2.ok) throw new Error('HTTP '+r2.status);
-      const all = await r2.json();
-      const pools = all.filter(p => p.mint_x === mint || p.mint_y === mint);
-      setStep('Meteora', pools.length ? 'done' : 'fail');
-      return pools;
-    }
-    const data = await r.json();
-    // Search in groups
-    const groups = data.groups || data || [];
+    // Use our proxy for Meteora too (CORS blocked on direct calls)
+    const d = await proxyFetch('meteora', '/pair/all');
     let pools = [];
-    if (Array.isArray(groups)) {
-      for (const g of groups) {
-        const gpools = g.pairs || g.pools || [];
-        pools.push(...gpools.filter(p => p.mint_x === mint || p.mint_y === mint));
-      }
-    }
-    // If not found in groups, try direct pair/all
-    if (!pools.length) {
-      const r2 = await fetch('https://dlmm-api.meteora.ag/pair/all');
-      if (r2.ok) {
-        const all = await r2.json();
-        pools = all.filter(p => p.mint_x === mint || p.mint_y === mint);
-      }
+    if (Array.isArray(d)) {
+      pools = d.filter(p => p.mint_x === mint || p.mint_y === mint);
     }
     setStep('Meteora', pools.length ? 'done' : 'fail');
     return pools;
