@@ -63,9 +63,14 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-se
 /* Token header */
 .token-hd{display:flex;align-items:center;gap:12px;background:var(--s1);border:1px solid var(--brd);border-radius:12px;padding:14px 18px;margin-bottom:16px}
 .token-hd img{width:40px;height:40px;border-radius:10px}
+.token-main{display:flex;align-items:center;gap:12px}
+.token-copy{min-width:0}
 .token-hd .name{font-size:18px;font-weight:800}
 .token-hd .sym{font-size:12px;color:var(--ac2);font-weight:600}
 .token-hd .addr{font-size:10px;color:var(--t2);font-family:'JetBrains Mono',monospace;word-break:break-all}
+.token-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.token-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid var(--brd);background:rgba(124,92,252,.08);color:var(--t);font-size:11px;font-weight:700}
+.token-pill .k{color:var(--t2);font-weight:600}
 .token-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .token-link{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid var(--brd);background:var(--s2);color:var(--ac2);text-decoration:none;font-size:11px;font-weight:700}
 .token-link:hover{border-color:var(--ac);color:var(--t)}
@@ -481,10 +486,6 @@ function renderResults(mint, rc, jup, met) {
   const totalFees24h = num(
     jup?.feesPaidSol,
     jup?.fees_paid_sol,
-    jup?.feesPaid,
-    jup?.fees_paid,
-    primaryPool?.fees_paid,
-    primaryPool?.feesPaid,
     primaryPool?.fees_paid_sol,
     primaryPool?.feesPaidSol
   );
@@ -518,10 +519,18 @@ function renderResults(mint, rc, jup, met) {
   const mintDisabled = jup?.audit?.mintAuthorityDisabled;
   const dexLabel = jup?.dex || jup?.exchange || jup?.audit?.dex || primaryPool?.name || primaryPool?.pool_type || primaryPool?.dex || (jup?.tags?.includes('paid') ? 'Paid' : null);
   h += `<div class="token-hd">
-    ${logo ? '<img src="'+esc(logo)+'" onerror="this.style.display=\'none\'">' : ''}
+    <div class="token-main">
+      ${logo ? '<img src="'+esc(logo)+'" onerror="this.style.display=\'none\'">' : ''}
+      <div class="token-copy">
+        <div class="name">${esc(name)} <span class="sym">${esc(symbol)}</span></div>
+        <div class="addr">${esc(mint)}</div>
+        <div class="token-meta">
+          <div class="token-pill"><span class="k">MC</span><span>${esc(marketCap != null ? fm(marketCap) : 'N/A')}</span></div>
+          <div class="token-pill"><span class="k">Age</span><span>${esc(ageDisplay(tokenAgeHours))}</span></div>
+        </div>
+      </div>
+    </div>
     <div>
-      <div class="name">${esc(name)} <span class="sym">${esc(symbol)}</span></div>
-      <div class="addr">${esc(mint)}</div>
       <div class="token-links">
         ${xUrl ? `<a class="token-link" href="${esc(xUrl)}" target="_blank" rel="noopener noreferrer" title="Open X community"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2H21l-6.017 6.876L22 22h-5.828l-4.563-6.617L5.814 22H3.056l6.437-7.357L2 2h5.976l4.125 5.976L18.244 2Zm-1.02 18.244h1.528L7.146 3.676H5.506l11.718 16.568Z"/></svg><span>X</span></a>` : ''}
         ${websiteUrl ? `<a class="token-link" href="${esc(websiteUrl)}" target="_blank" rel="noopener noreferrer" title="Open website"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10A10.012 10.012 0 0 0 12 2Zm6.93 9h-3.08a15.9 15.9 0 0 0-1.14-5.02A8.03 8.03 0 0 1 18.93 11ZM12 4.04c.83 0 2.43 2.09 2.96 6.96H9.04C9.57 6.13 11.17 4.04 12 4.04ZM9.29 5.98A15.9 15.9 0 0 0 8.15 11H5.07a8.03 8.03 0 0 1 4.22-5.02ZM4.26 13h3.89a15.9 15.9 0 0 0 1.14 5.02A8.03 8.03 0 0 1 4.26 13Zm7.74 6.96c-.83 0-2.43-2.09-2.96-6.96h5.92c-.53 4.87-2.13 6.96-2.96 6.96Zm2.71-1.94A15.9 15.9 0 0 0 15.85 13h3.89a8.03 8.03 0 0 1-5.03 5.02Z"/></svg><span>Site</span></a>` : ''}
@@ -549,8 +558,6 @@ function renderResults(mint, rc, jup, met) {
 
   // ── MARKET DATA ──
   h += '<div class="section"><div class="stitle"><span class="icon">💰</span> Market Data</div><div class="grid">';
-  h += card('Market Cap', marketCap, marketCap != null ? fm(marketCap) : 'N/A', 'market_cap');
-  h += card('Token Age', tokenAgeHours, ageDisplay(tokenAgeHours), 'token_age_hours');
   h += card('Fees Paid', totalFees24h, totalFees24h != null ? fmSol(totalFees24h) : 'N/A', 'total_fees_sol', primaryPool ? 'Primary source fallback applied' : '');
   h += card('Liquidity', totalLiquidity, totalLiquidity != null ? fm(totalLiquidity) : 'N/A', 'market_cap', Array.isArray(met) && met.length ? `${met.length} pools` : '');
   h += '</div></div>';
