@@ -46,24 +46,44 @@ module.exports = async (req, res) => {
     });
 
     const text = await response.text();
+    const debugHeaders = {
+      'content-type': response.headers.get('content-type'),
+      'server': response.headers.get('server'),
+      'cf-ray': response.headers.get('cf-ray'),
+      'cf-cache-status': response.headers.get('cf-cache-status'),
+      'x-frame-options': response.headers.get('x-frame-options'),
+    };
 
     // Try parse as JSON
     try {
       const json = JSON.parse(text);
+      if (!response.ok) {
+        return res.status(response.status).json({
+          error: 'gmgn_upstream_error',
+          upstream_status: response.status,
+          headers: debugHeaders,
+          body: json,
+        });
+      }
       res.status(response.status).json(json);
     } catch(e) {
       // If Cloudflare HTML challenge, return specific error
       if (text.includes('cf-browser-verification') || text.includes('challenge-platform')) {
         res.status(403).json({
           error: 'cloudflare_challenge',
+          upstream_status: response.status,
+          headers: debugHeaders,
           message: 'GMGN blocked the request with a Cloudflare challenge.',
           hint: 'Use a valid GMGN route/API key with server-side access or an approved GMGN Agent integration.',
+          body_preview: text.substring(0, 1000),
         });
       } else {
         res.status(response.status).json({
           error: 'gmgn_non_json_response',
           status: response.status,
+          headers: debugHeaders,
           message: text.substring(0, 500),
+          body_preview: text.substring(0, 1000),
         });
       }
     }
