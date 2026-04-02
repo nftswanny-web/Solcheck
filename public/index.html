@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SolCheck — Solana Token Analyzer</title>
+<title>DLMM CHECKER</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap');
 :root{
@@ -66,6 +66,10 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-se
 .token-hd .name{font-size:18px;font-weight:800}
 .token-hd .sym{font-size:12px;color:var(--ac2);font-weight:600}
 .token-hd .addr{font-size:10px;color:var(--t2);font-family:'JetBrains Mono',monospace;word-break:break-all}
+.token-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.token-link{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid var(--brd);background:var(--s2);color:var(--ac2);text-decoration:none;font-size:11px;font-weight:700}
+.token-link:hover{border-color:var(--ac);color:var(--t)}
+.token-link svg{width:13px;height:13px;fill:currentColor;display:block}
 
 /* KOL list */
 .kol-list{display:flex;flex-wrap:wrap;gap:6px}
@@ -104,15 +108,15 @@ tr:hover td{background:rgba(124,92,252,.03)}
 <body>
 
 <div class="hd">
-  <h1>SolCheck</h1>
-  <p>Analisi token Solana · RugCheck · Jupiter · GMGN · Meteora</p>
+  <h1>DLMM CHECKER</h1>
+  <p>Solana token analysis · RugCheck · Jupiter · Meteora</p>
 </div>
 
 <div class="search">
   <div class="search-row">
-    <input type="text" id="ca" placeholder="Inserisci Contract Address (CA) del token Solana…" spellcheck="false">
+    <input type="text" id="ca" placeholder="Enter Solana token contract address..." spellcheck="false">
     <button class="settings-btn" onclick="openSettings()" title="Settings">⚙️</button>
-    <button class="go" id="goBtn" onclick="analyze()">Analizza</button>
+    <button class="go" id="goBtn" onclick="analyze()">Analyze</button>
   </div>
 </div>
 
@@ -124,22 +128,22 @@ tr:hover td{background:rgba(124,92,252,.03)}
 <div class="results" id="results">
   <div class="empty">
     <big>🔍</big>
-    <p style="font-size:14px;font-weight:600">Inserisci un CA e premi Analizza</p>
-    <p style="font-size:11px;margin-top:6px">Raccoglieremo dati da 4 fonti e ti mostriamo tutto con semaforo verde/giallo/rosso</p>
+    <p style="font-size:14px;font-weight:600">Enter a CA and click Analyze</p>
+    <p style="font-size:11px;margin-top:6px">We collect data from multiple sources and show quick green / yellow / red signals</p>
   </div>
 </div>
 
-<div class="ft">SolCheck v1.0 — Dati da RugCheck, Jupiter, GMGN.ai, Meteora — Non è consulenza finanziaria. DYOR.</div>
+<div class="ft">DLMM CHECKER v1.0 — Data from RugCheck, Jupiter, Meteora — Not financial advice. DYOR.</div>
 
 <!-- SETTINGS OVERLAY -->
 <div class="overlay" id="settingsOverlay">
 <div class="panel">
   <button class="close" onclick="closeSettings()">✕</button>
-  <h2>⚙️ Impostazioni Range</h2>
-  <p class="note" style="margin-bottom:12px">Imposta i range per i 3 colori. Valori ≤ Verde = 🟢, tra Verde e Giallo = 🟡, &gt; Giallo = 🔴.<br>Per parametri "inverse" (dove alto = buono, es. Organic Score), i colori si invertono automaticamente.</p>
-  <div class="shead"><span>Parametro</span><span>🟢 max</span><span>🟡 max</span><span>🔴 da</span></div>
+  <h2>⚙️ Threshold Settings</h2>
+  <p class="note" style="margin-bottom:12px">Set the ranges for the 3 colors. Values ≤ Green = 🟢, between Green and Yellow = 🟡, &gt; Yellow = 🔴.<br>For inverse metrics where higher is better, colors are reversed automatically.</p>
+  <div class="shead"><span>Metric</span><span>🟢 max</span><span>🟡 max</span><span>🔴 from</span></div>
   <div id="settingsRows"></div>
-  <button class="save-btn" onclick="saveSettings()">💾 Salva</button>
+  <button class="save-btn" onclick="saveSettings()">💾 Save</button>
   <button class="save-btn" style="background:var(--in);border:1px solid var(--brd);margin-left:8px" onclick="resetSettings()">🔄 Reset</button>
 </div>
 </div>
@@ -153,11 +157,11 @@ const DEFAULT_SETTINGS = {
   rugcheck_score:     { g: 3000, y: 8000, dir: 'asc', label: 'RugCheck Score' },
   organic_score:      { g: 80,   y: 50,   dir: 'desc', label: 'Jupiter Organic Score' },
   market_cap:         { g: 500000, y: 100000, dir: 'desc', label: 'Market Cap (USD)' },
-  token_age_hours:    { g: 168,  y: 24,   dir: 'desc', label: 'Token Age (ore)' },
+  token_age_hours:    { g: 168,  y: 24,   dir: 'desc', label: 'Token Age (hours)' },
   top_holders_pct:    { g: 15,   y: 30,   dir: 'asc', label: 'Top Holders %' },
-  bundlers_pct:       { g: 5,    y: 15,   dir: 'asc', label: 'Bundlers %' },
-  phishing_pct:       { g: 2,    y: 5,    dir: 'asc', label: 'Phishing %' },
-  total_fees_sol:     { g: 100,  y: 20,   dir: 'desc', label: 'Total Fees (SOL)' },
+  bundlers_pct:       { g: 5,    y: 15,   dir: 'asc', label: 'Developer Holdings %' },
+  phishing_pct:       { g: 2,    y: 5,    dir: 'asc', label: 'Snipers %' },
+  total_fees_sol:     { g: 100,  y: 20,   dir: 'desc', label: 'Fees Paid (SOL)' },
 };
 
 let settings = {};
@@ -219,7 +223,7 @@ function saveSettings() {
   }
   saveSettingsToStorage();
   closeSettings();
-  alert('Impostazioni salvate!');
+  alert('Settings saved!');
 }
 function resetSettings() {
   settings = {};
@@ -323,7 +327,7 @@ async function fetchMeteora(mint) {
    ═══════════════════════════════════════════ */
 async function analyze() {
   const mint = $('ca').value.trim();
-  if (!mint || mint.length < 30) return alert('Inserisci un CA valido di Solana');
+  if (!mint || mint.length < 30) return alert('Enter a valid Solana contract address');
   $('goBtn').disabled = true;
   $('results').innerHTML = '';
   initProgress(['RugCheck', 'Jupiter', 'Meteora']);
@@ -375,7 +379,39 @@ function ageFromTimestamp(...values) {
 }
 function ageDisplay(hours) {
   if (hours == null || Number.isNaN(hours)) return 'N/A';
-  return hours < 24 ? hours.toFixed(1)+'h' : (hours/24).toFixed(1)+'d';
+  const totalHours = Math.max(0, Math.floor(hours));
+  const days = Math.floor(totalHours / 24);
+  const remHours = totalHours % 24;
+  if (days <= 0) return remHours + 'h';
+  return `${days}d ${remHours}h`;
+}
+function fmSol(n, d=2) {
+  if (n == null || isNaN(n)) return 'N/A';
+  n = +n;
+  if (Math.abs(n) >= 1e6) return (n/1e6).toFixed(2) + 'M SOL';
+  if (Math.abs(n) >= 1e3) return (n/1e3).toFixed(2) + 'K SOL';
+  return n.toFixed(d) + ' SOL';
+}
+function normalizeUrl(url, base='https://') {
+  if (!url) return '';
+  const value = String(url).trim();
+  if (!value) return '';
+  return /^https?:\/\//i.test(value) ? value : base + value.replace(/^\/+/, '');
+}
+function firstUrl(...values) {
+  for (const value of values) {
+    const normalized = normalizeUrl(value);
+    if (normalized) return normalized;
+  }
+  return '';
+}
+function firstHandle(...values) {
+  for (const value of values) {
+    if (!value) continue;
+    const handle = String(value).trim().replace(/^@/, '');
+    if (handle) return handle;
+  }
+  return '';
 }
 
 function card(label, value, displayValue, key, sub) {
@@ -395,6 +431,36 @@ function renderResults(mint, rc, jup, met) {
   const symbol = jup?.symbol || rc?.tokenMeta?.symbol || '?';
   const logo = jup?.icon || '';
   const gmgnUrl = 'https://gmgn.ai/sol/token/' + encodeURIComponent(mint);
+  const bubbleMapsUrl = 'https://app.bubblemaps.io/sol/token/' + encodeURIComponent(mint) + '?hide_context=1&hideSidebar=1&partnerId=demo';
+  const xHandle = firstHandle(
+    jup?.extensions?.twitter,
+    jup?.socials?.twitter,
+    jup?.twitter,
+    rc?.tokenMeta?.twitter,
+    rc?.twitter
+  );
+  const xUrl = firstUrl(
+    xHandle ? `x.com/${xHandle}` : '',
+    jup?.extensions?.twitter_url,
+    jup?.socials?.twitter_url,
+    jup?.twitter_url,
+    rc?.tokenMeta?.twitter_url,
+    rc?.twitter_url
+  );
+  const websiteUrl = firstUrl(
+    jup?.extensions?.website,
+    jup?.socials?.website,
+    jup?.website,
+    rc?.tokenMeta?.website,
+    rc?.website
+  );
+  const telegramUrl = firstUrl(
+    jup?.extensions?.telegram,
+    jup?.socials?.telegram,
+    jup?.telegram,
+    rc?.tokenMeta?.telegram,
+    rc?.telegram
+  );
   const primaryPool = Array.isArray(met) && met.length ? [...met].sort((a,b) => (num(b?.liquidity, b?.tvl) || 0) - (num(a?.liquidity, a?.tvl) || 0))[0] : null;
   const marketCap = num(jup?.marketCap, jup?.market_cap, jup?.fdv, jup?.mcap, rc?.tokenMeta?.marketCap);
   const tokenAgeHours = ageFromTimestamp(
@@ -412,8 +478,24 @@ function renderResults(mint, rc, jup, met) {
     rc?.tokenMeta?.createdAt,
     rc?.tokenMeta?.created_at
   );
-  const totalFees24h = num(primaryPool?.fees?.['24h'], primaryPool?.fees_24h, primaryPool?.fee_24h);
-  const totalLiquidity = (Array.isArray(met) ? met : []).reduce((sum, p) => sum + (num(p?.liquidity, p?.tvl) || 0), 0) || null;
+  const totalFees24h = num(
+    jup?.feesPaidSol,
+    jup?.fees_paid_sol,
+    jup?.feesPaid,
+    jup?.fees_paid,
+    primaryPool?.fees_paid,
+    primaryPool?.feesPaid,
+    primaryPool?.fees_paid_sol,
+    primaryPool?.feesPaidSol
+  );
+  const totalLiquidity = num(
+    jup?.liquidity,
+    jup?.liquidityUsd,
+    jup?.liquidity_usd,
+    rc?.tokenMeta?.liquidity,
+    rc?.liquidity,
+    (Array.isArray(met) ? met : []).reduce((sum, p) => sum + (num(p?.liquidity, p?.tvl) || 0), 0)
+  );
   const topH = pct(jup?.audit?.topHoldersPercentage, jup?.holderMetrics?.top10Percentage);
   const devH = pct(
     jup?.audit?.devBalancePercentage,
@@ -440,12 +522,18 @@ function renderResults(mint, rc, jup, met) {
     <div>
       <div class="name">${esc(name)} <span class="sym">${esc(symbol)}</span></div>
       <div class="addr">${esc(mint)}</div>
-      <div class="addr" style="margin-top:6px"><a href="${gmgnUrl}" target="_blank" style="color:var(--ac2);text-decoration:none">Apri su GMGN</a></div>
+      <div class="token-links">
+        ${xUrl ? `<a class="token-link" href="${esc(xUrl)}" target="_blank" rel="noopener noreferrer" title="Open X community"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2H21l-6.017 6.876L22 22h-5.828l-4.563-6.617L5.814 22H3.056l6.437-7.357L2 2h5.976l4.125 5.976L18.244 2Zm-1.02 18.244h1.528L7.146 3.676H5.506l11.718 16.568Z"/></svg><span>X</span></a>` : ''}
+        ${websiteUrl ? `<a class="token-link" href="${esc(websiteUrl)}" target="_blank" rel="noopener noreferrer" title="Open website"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10A10.012 10.012 0 0 0 12 2Zm6.93 9h-3.08a15.9 15.9 0 0 0-1.14-5.02A8.03 8.03 0 0 1 18.93 11ZM12 4.04c.83 0 2.43 2.09 2.96 6.96H9.04C9.57 6.13 11.17 4.04 12 4.04ZM9.29 5.98A15.9 15.9 0 0 0 8.15 11H5.07a8.03 8.03 0 0 1 4.22-5.02ZM4.26 13h3.89a15.9 15.9 0 0 0 1.14 5.02A8.03 8.03 0 0 1 4.26 13Zm7.74 6.96c-.83 0-2.43-2.09-2.96-6.96h5.92c-.53 4.87-2.13 6.96-2.96 6.96Zm2.71-1.94A15.9 15.9 0 0 0 15.85 13h3.89a8.03 8.03 0 0 1-5.03 5.02Z"/></svg><span>Site</span></a>` : ''}
+        ${telegramUrl ? `<a class="token-link" href="${esc(telegramUrl)}" target="_blank" rel="noopener noreferrer" title="Open Telegram community"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.78 18.65 9.95 14l8.47-7.64c.37-.33-.08-.5-.57-.17L7.39 12.8 2.88 11.39c-.98-.3-.99-.98.2-1.45L20.7 3.15c.82-.3 1.54.2 1.27 1.45l-3 14.15c-.2 1-.78 1.24-1.6.77l-4.44-3.28-2.14 2.06c-.24.24-.44.44-1.01.35Z"/></svg><span>Telegram</span></a>` : ''}
+        <a class="token-link" href="${gmgnUrl}" target="_blank" rel="noopener noreferrer"><span>GMGN</span></a>
+        <a class="token-link" href="${bubbleMapsUrl}" target="_blank" rel="noopener noreferrer"><span>Bubblemaps</span></a>
+      </div>
     </div>
   </div>`;
 
   // ── MAIN SCORES ──
-  h += '<div class="section"><div class="stitle"><span class="icon">📊</span> Punteggi Principali</div><div class="grid">';
+  h += '<div class="section"><div class="stitle"><span class="icon">📊</span> Main Scores</div><div class="grid">';
 
   // RugCheck score
   const rcScore = rc?.score ?? null;
@@ -463,7 +551,7 @@ function renderResults(mint, rc, jup, met) {
   h += '<div class="section"><div class="stitle"><span class="icon">💰</span> Market Data</div><div class="grid">';
   h += card('Market Cap', marketCap, marketCap != null ? fm(marketCap) : 'N/A', 'market_cap');
   h += card('Token Age', tokenAgeHours, ageDisplay(tokenAgeHours), 'token_age_hours');
-  h += card('Total Fees 24h', totalFees24h, totalFees24h != null ? fm(totalFees24h) : 'N/A', 'total_fees_sol', primaryPool ? 'Meteora primary pool' : '');
+  h += card('Fees Paid', totalFees24h, totalFees24h != null ? fmSol(totalFees24h) : 'N/A', 'total_fees_sol', primaryPool ? 'Primary source fallback applied' : '');
   h += card('Liquidity', totalLiquidity, totalLiquidity != null ? fm(totalLiquidity) : 'N/A', 'market_cap', Array.isArray(met) && met.length ? `${met.length} pools` : '');
   h += '</div></div>';
 
@@ -478,14 +566,14 @@ function renderResults(mint, rc, jup, met) {
   h += '</div></div>';
 
   // ── EXTRA INFO (non-scored) ──
-  h += '<div class="section"><div class="stitle"><span class="icon">ℹ️</span> Info Aggiuntive</div><div class="grid">';
+  h += '<div class="section"><div class="stitle"><span class="icon">ℹ️</span> Extra Info</div><div class="grid">';
   const extraFields = [
     ['Holders', num(jup?.holderCount, jup?.holders, rc?.token?.holderCount)?.toLocaleString()],
     ['Volume 24h', num(jup?.daily_volume, jup?.volume24h, primaryPool?.trade_volume_24h, primaryPool?.volume?.['24h']) != null ? fm(num(jup?.daily_volume, jup?.volume24h, primaryPool?.trade_volume_24h, primaryPool?.volume?.['24h'])) : null],
     ['Primary Pool', primaryPool?.name || (primaryPool ? `${primaryPool?.token_x?.symbol || primaryPool?.mint_x_symbol || '?'} / ${primaryPool?.token_y?.symbol || primaryPool?.mint_y_symbol || '?'}` : null)],
     ['Mint Auth', jup?.audit?.mintAuthorityDisabled != null ? (jup.audit.mintAuthorityDisabled ? 'No' : 'Active') : (rc?.mintAuthority === null || rc?.renounced_mint ? 'No' : 'Active')],
     ['Freeze Auth', jup?.audit?.freezeAuthorityDisabled != null ? (jup.audit.freezeAuthorityDisabled ? 'No' : 'Active') : null],
-    ['Verificato Jup', jup?.isVerified != null ? (jup.isVerified ? '✅ Sì' : '❌ No') : null],
+    ['Jupiter Verified', jup?.isVerified != null ? (jup.isVerified ? '✅ Yes' : '❌ No') : null],
     ['Tags Jup', jup?.tags?.join(', ')],
   ];
   extraFields.forEach(([label, val]) => {
@@ -497,7 +585,7 @@ function renderResults(mint, rc, jup, met) {
 
   // ── RUGCHECK RISKS ──
   if (rc?.risks?.length) {
-    h += '<div class="section"><div class="stitle"><span class="icon">⚠️</span> RugCheck Rischi</div><div class="grid">';
+    h += '<div class="section"><div class="stitle"><span class="icon">⚠️</span> RugCheck Risks</div><div class="grid">';
     rc.risks.forEach(r => {
       const col = r.level === 'danger' ? 'red' : r.level === 'warn' ? 'yellow' : '';
       h += `<div class="card ${col}">
@@ -509,13 +597,16 @@ function renderResults(mint, rc, jup, met) {
     h += '</div></div>';
   }
 
-  h += '<div class="section"><div class="err">GMGN automatico è temporaneamente disattivato. Usa il link "Apri su GMGN" per controllare manualmente market cap, fees e holder details.</div></div>';
+  h += '<div class="section"><div class="err">Automatic GMGN integration is temporarily disabled. Use "Open on GMGN" for manual checks until a stable path is available.</div></div>';
+
+  h += '<div class="section"><div class="stitle"><span class="icon">🫧</span> Holder Bubble Map</div>';
+  h += `<div class="card" style="padding:8px"><iframe src="${bubbleMapsUrl}" title="Bubblemaps" style="width:100%;height:560px;border:0;border-radius:10px;background:#050816"></iframe></div></div>`;
 
   // ── METEORA POOLS ──
-  h += '<div class="section"><div class="stitle"><span class="icon">💧</span> Pool Meteora DLMM</div>';
+  h += '<div class="section"><div class="stitle"><span class="icon">💧</span> Meteora DLMM Pools</div>';
   if (met && met.length) {
     h += '<div class="tw"><table><thead><tr>';
-    ['Pool', 'Pair', 'Bin Step', 'Base Fee', 'TVL (USD)', 'Volume 24h', 'Fees 24h', 'Fee/TVL %', 'Liquidità'].forEach(c => h += '<th>'+c+'</th>');
+    ['Pool', 'Pair', 'Bin Step', 'Base Fee', 'TVL (USD)', 'Volume 24h', 'Fees 24h', 'Fee/TVL %', 'Liquidity'].forEach(c => h += '<th>'+c+'</th>');
     h += '</tr></thead><tbody>';
     met.forEach(p => {
       const tvl = p.liquidity || p.tvl || 0;
@@ -540,7 +631,7 @@ function renderResults(mint, rc, jup, met) {
     });
     h += '</tbody></table></div>';
   } else {
-    h += '<p style="font-size:11px;color:var(--t2)">Nessuna pool Meteora DLMM trovata per questo token.</p>';
+    h += '<p style="font-size:11px;color:var(--t2)">No Meteora DLMM pools found for this token.</p>';
   }
   h += '</div>';
 
