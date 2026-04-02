@@ -11,6 +11,7 @@ module.exports = async (req, res) => {
     if (!path) return res.status(400).json({ error: 'Missing ?path=' });
 
     const apiKey = req.query.apikey || '';
+    const routeKey = req.query.routeKey || apiKey;
     const fullUrl = 'https://gmgn.ai' + path;
 
     const response = await fetch(fullUrl, {
@@ -23,6 +24,7 @@ module.exports = async (req, res) => {
         'Origin': 'https://gmgn.ai',
         'Cookie': apiKey ? 'gmgn_api_token=' + apiKey + '; _ga=GA1.1.123456789.1700000000' : '_ga=GA1.1.123456789.1700000000',
         'X-APIKEY': apiKey || undefined,
+        'x-route-key': routeKey || undefined,
         'Sec-Fetch-Dest': 'empty',
         'Sec-Fetch-Mode': 'cors',
         'Sec-Fetch-Site': 'same-origin',
@@ -44,7 +46,11 @@ module.exports = async (req, res) => {
     } catch(e) {
       // If Cloudflare HTML challenge, return specific error
       if (text.includes('cf-browser-verification') || text.includes('challenge-platform')) {
-        res.status(403).json({ error: 'cloudflare_challenge', message: 'GMGN is blocking with Cloudflare challenge. Try with a valid API key.' });
+        res.status(403).json({
+          error: 'cloudflare_challenge',
+          message: 'GMGN blocked the request with a Cloudflare challenge.',
+          hint: 'Use a valid GMGN route/API key with server-side access or an approved GMGN Agent integration.',
+        });
       } else {
         res.status(response.status).send(text.substring(0, 500));
       }
