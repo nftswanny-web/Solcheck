@@ -61,10 +61,17 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-se
 .card.red{background:var(--rbg);border-color:var(--rbd)}.card.red .value{color:var(--r)}
 
 /* Token header */
-.token-hd{display:flex;align-items:center;gap:12px;background:var(--s1);border:1px solid var(--brd);border-radius:12px;padding:14px 18px;margin-bottom:16px}
+.token-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;background:var(--s1);border:1px solid var(--brd);border-radius:12px;padding:14px 18px;margin-bottom:16px}
 .token-hd img{width:40px;height:40px;border-radius:10px}
 .token-main{display:flex;align-items:center;gap:12px}
 .token-copy{min-width:0}
+.token-side{display:flex;justify-content:flex-end;min-width:260px}
+.chart-card{width:260px;border:1px solid var(--brd);border-radius:12px;background:linear-gradient(180deg,var(--s2),rgba(17,17,37,.7));padding:10px 12px}
+.chart-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.chart-title{font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.08em}
+.chart-price{font-size:14px;font-weight:800;font-family:'JetBrains Mono',monospace}
+.mini-chart{width:100%;height:92px;display:block}
+.mini-axis{display:flex;justify-content:space-between;margin-top:6px;color:var(--t2);font-size:9px;text-transform:uppercase;letter-spacing:.06em}
 .token-hd .name{font-size:18px;font-weight:800}
 .token-hd .sym{font-size:12px;color:var(--ac2);font-weight:600}
 .token-hd .addr{font-size:10px;color:var(--t2);font-family:'JetBrains Mono',monospace;word-break:break-all}
@@ -108,6 +115,11 @@ tr:hover td{background:rgba(124,92,252,.03)}
 .empty{text-align:center;padding:60px 20px;color:var(--t2)}
 .empty big{font-size:44px;display:block;margin-bottom:8px;opacity:.2}
 .ft{padding:14px;border-top:1px solid var(--brd);text-align:center;color:var(--t2);font-size:8px;margin-top:30px}
+@media (max-width: 820px){
+  .token-hd{flex-direction:column}
+  .token-side{width:100%;min-width:0}
+  .chart-card{width:100%}
+}
 </style>
 </head>
 <body>
@@ -420,6 +432,46 @@ function fmSol(n, d=2) {
   if (Math.abs(n) >= 1e3) return (n/1e3).toFixed(2) + 'K SOL';
   return n.toFixed(d) + ' SOL';
 }
+function fmtPct(n) {
+  if (n == null || isNaN(n)) return 'N/A';
+  const v = +n;
+  const abs = Math.abs(v);
+  if (abs >= 100) return (v > 0 ? '+' : '') + (v/100).toFixed(0) + 'x';
+  return (v > 0 ? '+' : '') + v.toFixed(2) + '%';
+}
+function fmtVol(n) {
+  if (n == null || isNaN(n)) return 'N/A';
+  return fm(n);
+}
+function miniChartSvg(points) {
+  const valid = points.map((y, i) => ({ x: i, y })).filter((p) => p.y != null && !Number.isNaN(p.y));
+  if (!valid.length) return '';
+  const width = 236;
+  const height = 92;
+  const pad = 8;
+  const minY = Math.min(...valid.map((p) => p.y), 0);
+  const maxY = Math.max(...valid.map((p) => p.y), 0);
+  const span = maxY - minY || 1;
+  const toX = (i) => pad + (i / Math.max(points.length - 1, 1)) * (width - pad * 2);
+  const toY = (y) => height - pad - ((y - minY) / span) * (height - pad * 2);
+  const line = valid.map((p) => `${toX(p.x)},${toY(p.y)}`).join(' ');
+  const area = `${toX(valid[0].x)},${height-pad} ` + valid.map((p) => `${toX(p.x)},${toY(p.y)}`).join(' ') + ` ${toX(valid[valid.length-1].x)},${height-pad}`;
+  const trendUp = (valid[valid.length - 1]?.y || 0) >= (valid[0]?.y || 0);
+  const stroke = trendUp ? '#22c55e' : '#ef4444';
+  const zeroY = toY(0);
+  return `
+    <svg class="mini-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="${stroke}" stop-opacity="0.30"/>
+          <stop offset="100%" stop-color="${stroke}" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <line x1="${pad}" y1="${zeroY}" x2="${width-pad}" y2="${zeroY}" stroke="rgba(167,139,250,.25)" stroke-dasharray="4 4"/>
+      <polygon points="${area}" fill="url(#chartFill)"/>
+      <polyline points="${line}" fill="none" stroke="${stroke}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+}
 function normalizeUrl(url, base='https://') {
   if (!url) return '';
   const value = String(url).trim();
@@ -491,7 +543,6 @@ function renderResults(mint, rc, jup, met) {
   );
   const primaryPool = Array.isArray(met) && met.length ? [...met].sort((a,b) => (num(b?.liquidity, b?.tvl) || 0) - (num(a?.liquidity, a?.tvl) || 0))[0] : null;
   const marketCap = num(jup?.marketCap, jup?.market_cap, jup?.fdv, jup?.mcap, rc?.tokenMeta?.marketCap);
-  const matchedTokenId = jup?.id || jup?.mint || null;
   const tokenAgeHours = ageFromTimestamp(
     jup?.createdAt,
     jup?.created_at,
@@ -524,21 +575,6 @@ function renderResults(mint, rc, jup, met) {
     primaryPool?.fees_paid_sol,
     primaryPool?.feesPaidSol
   );
-  const feesDebug = [
-    ['fees', jup?.fees],
-    ['stats24h.fees', jup?.stats24h?.fees],
-    ['fees24h', jup?.fees24h],
-    ['fees_24h', jup?.fees_24h],
-    ['stats.fees', jup?.stats?.fees],
-    ['stats.fees24h', jup?.stats?.fees24h],
-    ['stats.fees_24h', jup?.stats?.fees_24h],
-    ['stats.fee', jup?.stats?.fee],
-    ['fee', jup?.fee],
-    ['fee24h', jup?.fee24h],
-    ['fee_24h', jup?.fee_24h],
-    ['feesPaidSol', jup?.feesPaidSol],
-    ['fees_paid_sol', jup?.fees_paid_sol],
-  ].filter(([, value]) => value != null && value !== '');
   const totalLiquidity = num(
     jup?.liquidity,
     jup?.liquidityUsd,
@@ -568,6 +604,13 @@ function renderResults(mint, rc, jup, met) {
   const freezeDisabled = jup?.audit?.freezeAuthorityDisabled;
   const mintDisabled = jup?.audit?.mintAuthorityDisabled;
   const dexLabel = jup?.dex || jup?.exchange || jup?.audit?.dex || primaryPool?.name || primaryPool?.pool_type || primaryPool?.dex || (jup?.tags?.includes('paid') ? 'Paid' : null);
+  const perfBuckets = [
+    { label: '5m', change: num(jup?.stats5m?.priceChange), volume: num(jup?.stats5m?.buyVolume, 0) + num(jup?.stats5m?.sellVolume, 0) },
+    { label: '1h', change: num(jup?.stats1h?.priceChange), volume: num(jup?.stats1h?.buyVolume, 0) + num(jup?.stats1h?.sellVolume, 0) },
+    { label: '6h', change: num(jup?.stats6h?.priceChange), volume: num(jup?.stats6h?.buyVolume, 0) + num(jup?.stats6h?.sellVolume, 0) },
+    { label: '24h', change: num(jup?.stats24h?.priceChange), volume: num(jup?.stats24h?.buyVolume, 0) + num(jup?.stats24h?.sellVolume, 0) },
+  ];
+  const chartSvg = miniChartSvg(perfBuckets.map((b) => b.change));
   h += `<div class="token-hd">
     <div class="token-main">
       ${logo ? '<img src="'+esc(logo)+'" onerror="this.style.display=\'none\'">' : ''}
@@ -587,6 +630,16 @@ function renderResults(mint, rc, jup, met) {
         ${telegramUrl ? `<a class="token-link" href="${esc(telegramUrl)}" target="_blank" rel="noopener noreferrer" title="Open Telegram community"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.78 18.65 9.95 14l8.47-7.64c.37-.33-.08-.5-.57-.17L7.39 12.8 2.88 11.39c-.98-.3-.99-.98.2-1.45L20.7 3.15c.82-.3 1.54.2 1.27 1.45l-3 14.15c-.2 1-.78 1.24-1.6.77l-4.44-3.28-2.14 2.06c-.24.24-.44.44-1.01.35Z"/></svg><span>Telegram</span></a>` : ''}
         <a class="token-link" href="${gmgnUrl}" target="_blank" rel="noopener noreferrer"><span>GMGN</span></a>
         <a class="token-link" href="${bubbleMapsUrl}" target="_blank" rel="noopener noreferrer"><span>Bubblemaps</span></a>
+      </div>
+    </div>
+    <div class="token-side">
+      <div class="chart-card">
+        <div class="chart-head">
+          <div class="chart-title">Token Chart</div>
+          <div class="chart-price">${esc(jup?.usdPrice != null ? fm(jup.usdPrice, 6) : 'N/A')}</div>
+        </div>
+        ${chartSvg || '<div style="height:92px;display:flex;align-items:center;justify-content:center;color:var(--t2);font-size:11px">No chart data</div>'}
+        <div class="mini-axis"><span>5m</span><span>1h</span><span>6h</span><span>24h</span></div>
       </div>
     </div>
   </div>`;
@@ -611,10 +664,17 @@ function renderResults(mint, rc, jup, met) {
   h += card('Fees Paid', totalFees24h, totalFees24h != null ? fmSol(totalFees24h) : 'N/A', 'total_fees_sol', primaryPool ? 'Primary source fallback applied' : '');
   h += card('Liquidity', totalLiquidity, totalLiquidity != null ? fm(totalLiquidity) : 'N/A', 'market_cap', Array.isArray(met) && met.length ? `${met.length} pools` : '');
   h += '</div></div>';
-  h += `<div class="section"><div class="err">Jupiter debug: matchedId=${esc(String(matchedTokenId || 'N/A'))} | symbol=${esc(String(jup?.symbol || 'N/A'))} | fees=${esc(String(jup?.fees ?? 'N/A'))} | sources=${esc(String((jup?.__sources || []).join(',') || 'N/A'))}</div></div>`;
-  if (totalFees24h == null && feesDebug.length) {
-    h += `<div class="section"><div class="err">Fees debug: ${esc(feesDebug.map(([k,v]) => `${k}=${v}`).join(' | '))}</div></div>`;
-  }
+
+  h += '<div class="section"><div class="stitle"><span class="icon">📈</span> Performance & Volume</div><div class="grid">';
+  perfBuckets.forEach((bucket) => {
+    const bucketColor = bucket.change == null ? '' : bucket.change >= 0 ? 'green' : 'red';
+    h += `<div class="card ${bucketColor}">
+      <div class="label">${bucket.label}</div>
+      <div class="value">${esc(fmtPct(bucket.change))}</div>
+      <div class="sub">Vol ${esc(fmtVol(bucket.volume))}</div>
+    </div>`;
+  });
+  h += '</div></div>';
 
   // ── JUPITER AUDIT ──
   h += '<div class="section"><div class="stitle"><span class="icon">🪐</span> Jupiter Audit</div><div class="grid">';
@@ -657,8 +717,6 @@ function renderResults(mint, rc, jup, met) {
     });
     h += '</div></div>';
   }
-
-  h += '<div class="section"><div class="err">Automatic GMGN integration is temporarily disabled. Use "Open on GMGN" for manual checks until a stable path is available.</div></div>';
 
   h += '<div class="section"><div class="stitle"><span class="icon">🫧</span> Holder Bubble Map</div>';
   h += `<div class="card" style="padding:8px"><iframe src="${bubbleMapsUrl}" title="Bubblemaps" style="width:100%;height:560px;border:0;border-radius:10px;background:#050816"></iframe></div></div>`;
