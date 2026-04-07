@@ -45,7 +45,22 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-se
 .pstatus .done{color:var(--g)}.pstatus .loading{color:var(--y)}.pstatus .fail{color:var(--r)}
 
 /* ─── RESULTS ─── */
-.results{max-width:900px;margin:20px auto;padding:0 20px}
+.app-shell{max-width:1180px;margin:20px auto;padding:0 20px;display:grid;grid-template-columns:260px minmax(0,1fr);gap:16px;align-items:start}
+.history{position:sticky;top:20px;border:1px solid var(--brd);border-radius:12px;background:var(--s1);padding:12px}
+.history-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.history-title{font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.06em}
+.history-actions{display:flex;gap:6px}
+.history-btn{padding:6px 8px;border-radius:8px;border:1px solid var(--brd);background:var(--s2);color:var(--t2);font-size:10px;font-weight:700;cursor:pointer}
+.history-btn:hover{border-color:var(--ac);color:var(--t)}
+.history-list{display:flex;flex-direction:column;gap:8px}
+.history-item{border:1px solid var(--brd);border-radius:10px;background:rgba(17,17,37,.75);padding:10px}
+.history-item.active{border-color:rgba(124,92,252,.55);box-shadow:0 0 0 1px rgba(124,92,252,.16) inset}
+.history-token{font-size:11px;font-weight:700;color:var(--t);margin-bottom:4px}
+.history-meta{font-size:9px;color:var(--t2);font-family:'JetBrains Mono',monospace;word-break:break-all;line-height:1.45}
+.history-row{display:flex;gap:6px;margin-top:8px}
+.history-open{flex:1;padding:7px 8px;border-radius:8px;border:1px solid var(--brd);background:var(--in);color:var(--t);font-size:10px;font-weight:700;cursor:pointer}
+.history-open:hover{border-color:var(--ac)}
+.results{min-width:0}
 .section{margin-bottom:16px}
 .stitle{font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;display:flex;align-items:center;gap:6px}
 .stitle .icon{font-size:14px}
@@ -65,13 +80,14 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-se
 .token-hd img{width:40px;height:40px;border-radius:10px}
 .token-main{display:flex;align-items:center;gap:12px}
 .token-copy{min-width:0}
-.token-side{display:flex;justify-content:flex-end;min-width:260px}
-.chart-card{width:260px;border:1px solid var(--brd);border-radius:12px;background:linear-gradient(180deg,var(--s2),rgba(17,17,37,.7));padding:10px 12px}
+.token-side{display:flex;justify-content:flex-end;min-width:320px}
+.chart-card{width:320px;border:1px solid var(--brd);border-radius:12px;background:linear-gradient(180deg,var(--s2),rgba(17,17,37,.7));padding:10px 12px}
 .chart-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .chart-title{font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.08em}
 .chart-price{font-size:14px;font-weight:800;font-family:'JetBrains Mono',monospace}
-.mini-chart{width:100%;height:92px;display:block}
-.mini-axis{display:flex;justify-content:space-between;margin-top:6px;color:var(--t2);font-size:9px;text-transform:uppercase;letter-spacing:.06em}
+.chart-embed{position:relative;width:100%;height:220px;border:1px solid rgba(124,92,252,.18);border-radius:10px;overflow:hidden;background:#090914}
+.chart-embed iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.chart-caption{display:flex;justify-content:space-between;margin-top:6px;color:var(--t2);font-size:9px;text-transform:uppercase;letter-spacing:.06em}
 .focus-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:10px}
 .focus-chip{border:1px solid var(--brd);border-radius:10px;background:rgba(6,6,16,.45);padding:8px}
 .focus-chip .k{font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}
@@ -122,6 +138,8 @@ tr:hover td{background:rgba(124,92,252,.03)}
 .empty big{font-size:44px;display:block;margin-bottom:8px;opacity:.2}
 .ft{padding:14px;border-top:1px solid var(--brd);text-align:center;color:var(--t2);font-size:8px;margin-top:30px}
 @media (max-width: 820px){
+  .app-shell{grid-template-columns:1fr}
+  .history{position:static}
   .token-hd{flex-direction:column}
   .token-side{width:100%;min-width:0}
   .chart-card{width:100%}
@@ -148,11 +166,23 @@ tr:hover td{background:rgba(124,92,252,.03)}
   <div class="pstatus" id="pstatus"></div>
 </div>
 
-<div class="results" id="results">
-  <div class="empty">
-    <big>🔍</big>
-    <p style="font-size:14px;font-weight:600">Enter a CA and click Analyze</p>
-    <p style="font-size:11px;margin-top:6px">We collect data from multiple sources and show quick green / yellow / red signals</p>
+<div class="app-shell">
+  <aside class="history">
+    <div class="history-head">
+      <div class="history-title">Recent Scans</div>
+      <div class="history-actions">
+        <button class="history-btn" onclick="refreshCurrentScan()">Refresh</button>
+      </div>
+    </div>
+    <div class="history-list" id="historyList"></div>
+  </aside>
+
+  <div class="results" id="results">
+    <div class="empty">
+      <big>🔍</big>
+      <p style="font-size:14px;font-weight:600">Enter a CA and click Analyze</p>
+      <p style="font-size:11px;margin-top:6px">We collect data from multiple sources and show quick green / yellow / red signals</p>
+    </div>
   </div>
 </div>
 
@@ -188,6 +218,8 @@ const DEFAULT_SETTINGS = {
 };
 
 let settings = {};
+let scanHistory = [];
+let currentMint = '';
 function loadSettings() {
   try { settings = JSON.parse(localStorage.getItem('solcheck_settings')) || {}; } catch(e) {}
   for (const [k,v] of Object.entries(DEFAULT_SETTINGS)) {
@@ -196,6 +228,45 @@ function loadSettings() {
 }
 function saveSettingsToStorage() { localStorage.setItem('solcheck_settings', JSON.stringify(settings)); }
 loadSettings();
+
+function loadHistory() {
+  try { scanHistory = JSON.parse(localStorage.getItem('solcheck_history')) || []; } catch(e) { scanHistory = []; }
+}
+function saveHistory() {
+  localStorage.setItem('solcheck_history', JSON.stringify(scanHistory.slice(0, 12)));
+}
+function pushHistory(entry) {
+  scanHistory = [entry, ...scanHistory.filter((item) => item.mint !== entry.mint)].slice(0, 12);
+  saveHistory();
+  renderHistory();
+}
+function renderHistory() {
+  const el = $('historyList');
+  if (!el) return;
+  if (!scanHistory.length) {
+    el.innerHTML = '<div class="history-item"><div class="history-meta">Your latest scans will appear here.</div></div>';
+    return;
+  }
+  el.innerHTML = scanHistory.map((item) => `
+    <div class="history-item ${item.mint === currentMint ? 'active' : ''}">
+      <div class="history-token">${esc(item.name || item.symbol || 'Unknown Token')}</div>
+      <div class="history-meta">${esc(item.symbol || 'N/A')} · ${esc(item.mint)}</div>
+      <div class="history-meta">${esc(item.updatedAt || '')}</div>
+      <div class="history-row">
+        <button class="history-open" onclick="openHistoryToken('${esc(item.mint)}')">Open</button>
+      </div>
+    </div>
+  `).join('');
+}
+function openHistoryToken(mint) {
+  $('ca').value = mint;
+  analyze(mint);
+}
+function refreshCurrentScan() {
+  if (!currentMint) return;
+  analyze(currentMint);
+}
+loadHistory();
 
 /* Color logic */
 function getColor(key, value) {
@@ -371,9 +442,12 @@ async function fetchMeteora(mint) {
 /* ═══════════════════════════════════════════
    MAIN ANALYZE
    ═══════════════════════════════════════════ */
-async function analyze() {
-  const mint = $('ca').value.trim();
+async function analyze(forcedMint) {
+  const mint = (forcedMint || $('ca').value.trim()).trim();
   if (!mint || mint.length < 30) return alert('Enter a valid Solana contract address');
+  currentMint = mint;
+  $('ca').value = mint;
+  renderHistory();
   $('goBtn').disabled = true;
   $('results').innerHTML = '';
   initProgress(['RugCheck', 'Jupiter', 'Meteora']);
@@ -387,6 +461,12 @@ async function analyze() {
 
   // Build results
   renderResults(mint, rugcheck, jupiter, meteora);
+  pushHistory({
+    mint,
+    name: jupiter?.name || rugcheck?.tokenMeta?.name || 'Unknown Token',
+    symbol: jupiter?.symbol || rugcheck?.tokenMeta?.symbol || '',
+    updatedAt: new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+  });
   $('goBtn').disabled = false;
 }
 
@@ -448,35 +528,6 @@ function fmtPct(n) {
 function fmtVol(n) {
   if (n == null || isNaN(n)) return 'N/A';
   return fm(n);
-}
-function miniChartSvg(points) {
-  const valid = points.map((y, i) => ({ x: i, y })).filter((p) => p.y != null && !Number.isNaN(p.y));
-  if (!valid.length) return '';
-  const width = 236;
-  const height = 92;
-  const pad = 8;
-  const minY = Math.min(...valid.map((p) => p.y), 0);
-  const maxY = Math.max(...valid.map((p) => p.y), 0);
-  const span = maxY - minY || 1;
-  const toX = (i) => pad + (i / Math.max(points.length - 1, 1)) * (width - pad * 2);
-  const toY = (y) => height - pad - ((y - minY) / span) * (height - pad * 2);
-  const line = valid.map((p) => `${toX(p.x)},${toY(p.y)}`).join(' ');
-  const area = `${toX(valid[0].x)},${height-pad} ` + valid.map((p) => `${toX(p.x)},${toY(p.y)}`).join(' ') + ` ${toX(valid[valid.length-1].x)},${height-pad}`;
-  const trendUp = (valid[valid.length - 1]?.y || 0) >= (valid[0]?.y || 0);
-  const stroke = trendUp ? '#22c55e' : '#ef4444';
-  const zeroY = toY(0);
-  return `
-    <svg class="mini-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
-      <defs>
-        <linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stop-color="${stroke}" stop-opacity="0.30"/>
-          <stop offset="100%" stop-color="${stroke}" stop-opacity="0"/>
-        </linearGradient>
-      </defs>
-      <line x1="${pad}" y1="${zeroY}" x2="${width-pad}" y2="${zeroY}" stroke="rgba(167,139,250,.25)" stroke-dasharray="4 4"/>
-      <polygon points="${area}" fill="url(#chartFill)"/>
-      <polyline points="${line}" fill="none" stroke="${stroke}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>`;
 }
 function normalizeUrl(url, base='https://') {
   if (!url) return '';
@@ -616,7 +667,10 @@ function renderResults(mint, rc, jup, met) {
     { label: '6h', change: num(jup?.stats6h?.priceChange), volume: num(jup?.stats6h?.buyVolume, 0) + num(jup?.stats6h?.sellVolume, 0) },
     { label: '24h', change: num(jup?.stats24h?.priceChange), volume: num(jup?.stats24h?.buyVolume, 0) + num(jup?.stats24h?.sellVolume, 0) },
   ];
-  const chartSvg = miniChartSvg(perfBuckets.map((b) => b.change));
+  const chartPairAddress = primaryPool?.address || jup?.graduatedPool || jup?.firstPool?.id || mint;
+  const chartUrl = chartPairAddress
+    ? `https://dexscreener.com/solana/${encodeURIComponent(chartPairAddress)}?embed=1&loadChartSettings=0&chartLeftToolbar=0&chartTheme=dark&theme=dark&chartStyle=0&chartType=usd&interval=5`
+    : '';
   const stats5m = jup?.stats5m || {};
   const buyVol5m = num(stats5m?.buyVolume);
   const sellVol5m = num(stats5m?.sellVolume);
@@ -650,8 +704,10 @@ function renderResults(mint, rc, jup, met) {
           <div class="chart-title">Token Chart</div>
           <div class="chart-price">${esc(jup?.usdPrice != null ? fm(jup.usdPrice, 6) : 'N/A')}</div>
         </div>
-        ${chartSvg || '<div style="height:92px;display:flex;align-items:center;justify-content:center;color:var(--t2);font-size:11px">No chart data</div>'}
-        <div class="mini-axis"><span>5m</span><span>1h</span><span>6h</span><span>24h</span></div>
+        ${chartUrl
+          ? `<div class="chart-embed"><iframe src="${chartUrl}" title="DexScreener chart" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>
+             <div class="chart-caption"><span>DexScreener embed</span><span>5m focus</span></div>`
+          : '<div style="height:220px;display:flex;align-items:center;justify-content:center;color:var(--t2);font-size:11px">No embeddable chart</div>'}
         <div class="focus-grid">
           <div class="focus-chip"><div class="k">5m change</div><div class="v ${change5m == null ? '' : change5m >= 0 ? 'green' : 'red'}">${esc(fmtPct(change5m))}</div></div>
           <div class="focus-chip"><div class="k">5m volume</div><div class="v">${esc(fmtVol(num(buyVol5m,0)+num(sellVol5m,0)))}</div></div>
@@ -782,6 +838,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && document.activeElement === $('ca') && !$('goBtn').disabled) analyze();
   if (e.key === 'Escape') closeSettings();
 });
+renderHistory();
 </script>
 </body>
 </html>
