@@ -72,6 +72,12 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-se
 .chart-price{font-size:14px;font-weight:800;font-family:'JetBrains Mono',monospace}
 .mini-chart{width:100%;height:92px;display:block}
 .mini-axis{display:flex;justify-content:space-between;margin-top:6px;color:var(--t2);font-size:9px;text-transform:uppercase;letter-spacing:.06em}
+.focus-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:10px}
+.focus-chip{border:1px solid var(--brd);border-radius:10px;background:rgba(6,6,16,.45);padding:8px}
+.focus-chip .k{font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}
+.focus-chip .v{font-size:13px;font-weight:800;font-family:'JetBrains Mono',monospace}
+.focus-chip .v.green{color:var(--g)}
+.focus-chip .v.red{color:var(--r)}
 .token-hd .name{font-size:18px;font-weight:800}
 .token-hd .sym{font-size:12px;color:var(--ac2);font-weight:600}
 .token-hd .addr{font-size:10px;color:var(--t2);font-family:'JetBrains Mono',monospace;word-break:break-all}
@@ -611,6 +617,12 @@ function renderResults(mint, rc, jup, met) {
     { label: '24h', change: num(jup?.stats24h?.priceChange), volume: num(jup?.stats24h?.buyVolume, 0) + num(jup?.stats24h?.sellVolume, 0) },
   ];
   const chartSvg = miniChartSvg(perfBuckets.map((b) => b.change));
+  const stats5m = jup?.stats5m || {};
+  const buyVol5m = num(stats5m?.buyVolume);
+  const sellVol5m = num(stats5m?.sellVolume);
+  const traders5m = num(stats5m?.numTraders);
+  const netBuyers5m = num(stats5m?.numNetBuyers);
+  const change5m = num(stats5m?.priceChange);
   h += `<div class="token-hd">
     <div class="token-main">
       ${logo ? '<img src="'+esc(logo)+'" onerror="this.style.display=\'none\'">' : ''}
@@ -640,6 +652,12 @@ function renderResults(mint, rc, jup, met) {
         </div>
         ${chartSvg || '<div style="height:92px;display:flex;align-items:center;justify-content:center;color:var(--t2);font-size:11px">No chart data</div>'}
         <div class="mini-axis"><span>5m</span><span>1h</span><span>6h</span><span>24h</span></div>
+        <div class="focus-grid">
+          <div class="focus-chip"><div class="k">5m change</div><div class="v ${change5m == null ? '' : change5m >= 0 ? 'green' : 'red'}">${esc(fmtPct(change5m))}</div></div>
+          <div class="focus-chip"><div class="k">5m volume</div><div class="v">${esc(fmtVol(num(buyVol5m,0)+num(sellVol5m,0)))}</div></div>
+          <div class="focus-chip"><div class="k">5m buys / sells</div><div class="v">${esc(`${fmtVol(buyVol5m)} / ${fmtVol(sellVol5m)}`)}</div></div>
+          <div class="focus-chip"><div class="k">5m traders</div><div class="v">${esc(String(traders5m != null ? traders5m : 'N/A'))}${netBuyers5m != null ? `<span style="font-size:10px;color:var(--t2)"> · net ${esc(String(netBuyers5m))}</span>` : ''}</div></div>
+        </div>
       </div>
     </div>
   </div>`;
@@ -686,16 +704,16 @@ function renderResults(mint, rc, jup, met) {
   h += `<div class="card"><div class="label">Dex</div><div class="value" style="font-size:16px">${esc(dexLabel || 'N/A')}</div></div>`;
   h += '</div></div>';
 
-  // ── EXTRA INFO (non-scored) ──
-  h += '<div class="section"><div class="stitle"><span class="icon">ℹ️</span> Extra Info</div><div class="grid">';
+  // ── TOKEN DETAILS ──
+  h += '<div class="section"><div class="stitle"><span class="icon">ℹ️</span> Token Details</div><div class="grid">';
   const extraFields = [
     ['Holders', num(jup?.holderCount, jup?.holders, rc?.token?.holderCount)?.toLocaleString()],
     ['Volume 24h', num(jup?.daily_volume, jup?.volume24h, primaryPool?.trade_volume_24h, primaryPool?.volume?.['24h']) != null ? fm(num(jup?.daily_volume, jup?.volume24h, primaryPool?.trade_volume_24h, primaryPool?.volume?.['24h'])) : null],
     ['Primary Pool', primaryPool?.name || (primaryPool ? `${primaryPool?.token_x?.symbol || primaryPool?.mint_x_symbol || '?'} / ${primaryPool?.token_y?.symbol || primaryPool?.mint_y_symbol || '?'}` : null)],
-    ['Mint Auth', jup?.audit?.mintAuthorityDisabled != null ? (jup.audit.mintAuthorityDisabled ? 'No' : 'Active') : (rc?.mintAuthority === null || rc?.renounced_mint ? 'No' : 'Active')],
-    ['Freeze Auth', jup?.audit?.freezeAuthorityDisabled != null ? (jup.audit.freezeAuthorityDisabled ? 'No' : 'Active') : null],
     ['Jupiter Verified', jup?.isVerified != null ? (jup.isVerified ? '✅ Yes' : '❌ No') : null],
     ['Tags Jup', jup?.tags?.join(', ')],
+    ['Launchpad', jup?.launchpad],
+    ['Token Program', jup?.tokenProgram || rc?.tokenProgram],
   ];
   extraFields.forEach(([label, val]) => {
     if (val != null && val !== '' && val !== undefined) {
