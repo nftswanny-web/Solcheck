@@ -1,5 +1,23 @@
 const fetch = require('node-fetch');
 
+function extractJupiterTokenFromHtml(html, mint) {
+  const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">\s*([\s\S]*?)<\/script>/i);
+  if (!match) return null;
+  const payload = JSON.parse(match[1]);
+  const queries = payload?.props?.pageProps?.dehydratedState?.queries;
+  if (!Array.isArray(queries)) return null;
+
+  for (const query of queries) {
+    const key = query?.queryKey;
+    const data = query?.state?.data;
+    if (!data) continue;
+    if (Array.isArray(key) && key.includes(mint)) return data;
+    if (data?.id === mint) return data;
+  }
+
+  return null;
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -15,10 +33,20 @@ module.exports = async (req, res) => {
       {
         url: 'https://api.jup.ag/tokens/v2/search?query=' + encodeURIComponent(query),
         headers: apiKey ? { 'x-api-key': apiKey } : {},
+        type: 'json',
       },
       {
         url: 'https://lite-api.jup.ag/tokens/v2/search?query=' + encodeURIComponent(query),
         headers: {},
+        type: 'json',
+      },
+      {
+        url: 'https://jup.ag/tokens/' + encodeURIComponent(query),
+        headers: {
+          'User-Agent': 'Mozilla/5.0',
+          'Accept': 'text/html',
+        },
+        type: 'html',
       },
     ];
 
@@ -28,7 +56,7 @@ module.exports = async (req, res) => {
       try {
         const response = await fetch(endpoint.url, {
           headers: {
-            'Accept': 'application/json',
+            'Accept': endpoint.type === 'html' ? 'text/html' : 'application/json',
             ...endpoint.headers,
           },
           timeout: 20000,
@@ -36,6 +64,14 @@ module.exports = async (req, res) => {
 
         if (!response.ok) {
           lastError = 'HTTP ' + response.status;
+          continue;
+        }
+
+        if (endpoint.type === 'html') {
+          const html = await response.text();
+          const data = extractJupiterTokenFromHtml(html, query);
+          if (data) return res.status(200).json(data);
+          lastError = 'Could not extract token data from Jupiter HTML';
           continue;
         }
 
