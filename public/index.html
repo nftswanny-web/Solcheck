@@ -484,6 +484,10 @@ function renderResults(mint, rc, jup, met) {
     rc?.tokenMeta?.created_at
   );
   const totalFees24h = num(
+    jup?.fees,
+    jup?.stats24h?.fees,
+    jup?.fees24h,
+    jup?.fees_24h,
     jup?.feesPaidSol,
     jup?.fees_paid_sol,
     primaryPool?.fees_paid_sol,
