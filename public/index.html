@@ -280,19 +280,35 @@ async function fetchRugCheck(mint) {
 async function fetchJupiter(mint) {
   setStep('Jupiter', 'loading');
   try {
-    let d = null;
-    try {
-      const r = await fetch('/api/jupiter?query='+encodeURIComponent(mint), { signal: AbortSignal.timeout(20000) });
-      if (!r.ok) throw new Error('HTTP '+r.status);
-      d = await r.json();
-    } catch(e) {
-      const r = await fetch('https://lite-api.jup.ag/tokens/v2/search?query='+encodeURIComponent(mint), { signal: AbortSignal.timeout(20000) });
-      if (!r.ok) throw new Error('HTTP '+r.status);
-      d = await r.json();
+    const sources = [
+      { name: 'proxy', url: '/api/jupiter?query='+encodeURIComponent(mint) },
+      { name: 'api', url: 'https://api.jup.ag/tokens/v2/search?query='+encodeURIComponent(mint) },
+      { name: 'lite', url: 'https://lite-api.jup.ag/tokens/v2/search?query='+encodeURIComponent(mint) },
+    ];
+    const results = await Promise.all(sources.map(async (source) => {
+      try {
+        const r = await fetch(source.url, { signal: AbortSignal.timeout(20000) });
+        if (!r.ok) throw new Error('HTTP '+r.status);
+        const data = await r.json();
+        return { source: source.name, data };
+      } catch(e) {
+        return { source: source.name, error: e.message };
+      }
+    }));
+    let merged = null;
+    const matchedSources = [];
+    for (const result of results) {
+      const data = result.data;
+      if (!data) continue;
+      const match = Array.isArray(data) ? (data.find(t => t.id === mint) || data[0] || null) : data;
+      if (!match) continue;
+      matchedSources.push(result.source);
+      merged = merged ? { ...merged, ...match, audit: { ...(merged.audit || {}), ...(match.audit || {}) }, stats24h: { ...(merged.stats24h || {}), ...(match.stats24h || {}) }, stats6h: { ...(merged.stats6h || {}), ...(match.stats6h || {}) }, stats1h: { ...(merged.stats1h || {}), ...(match.stats1h || {}) }, stats5m: { ...(merged.stats5m || {}), ...(match.stats5m || {}) } } : { ...match };
     }
+    const d = merged;
+    if (d) d.__sources = matchedSources;
+    if (!d) throw new Error('No Jupiter token match found');
     setStep('Jupiter', 'done');
-    // Find the exact match
-    if (Array.isArray(d)) return d.find(t => t.id === mint) || d[0] || null;
     return d;
   } catch(e) { setStep('Jupiter', 'fail'); return null; }
 }
@@ -595,7 +611,7 @@ function renderResults(mint, rc, jup, met) {
   h += card('Fees Paid', totalFees24h, totalFees24h != null ? fmSol(totalFees24h) : 'N/A', 'total_fees_sol', primaryPool ? 'Primary source fallback applied' : '');
   h += card('Liquidity', totalLiquidity, totalLiquidity != null ? fm(totalLiquidity) : 'N/A', 'market_cap', Array.isArray(met) && met.length ? `${met.length} pools` : '');
   h += '</div></div>';
-  h += `<div class="section"><div class="err">Jupiter debug: matchedId=${esc(String(matchedTokenId || 'N/A'))} | symbol=${esc(String(jup?.symbol || 'N/A'))} | fees=${esc(String(jup?.fees ?? 'N/A'))}</div></div>`;
+  h += `<div class="section"><div class="err">Jupiter debug: matchedId=${esc(String(matchedTokenId || 'N/A'))} | symbol=${esc(String(jup?.symbol || 'N/A'))} | fees=${esc(String(jup?.fees ?? 'N/A'))} | sources=${esc(String((jup?.__sources || []).join(',') || 'N/A'))}</div></div>`;
   if (totalFees24h == null && feesDebug.length) {
     h += `<div class="section"><div class="err">Fees debug: ${esc(feesDebug.map(([k,v]) => `${k}=${v}`).join(' | '))}</div></div>`;
   }
