@@ -439,6 +439,27 @@ async function fetchMeteora(mint) {
   } catch(e) { setStep('Meteora', 'fail'); return []; }
 }
 
+// 4. BUBBLEMAPS
+async function fetchBubblemaps(mint) {
+  setStep('Bubblemaps', 'loading');
+  try {
+    const r = await fetch('/api/bubblemaps?mint=' + encodeURIComponent(mint), {
+      signal: AbortSignal.timeout(30000),
+    });
+    const data = await r.json().catch(() => null);
+    if (!r.ok) throw new Error(data?.message || ('HTTP ' + r.status));
+    if (!data?.available) {
+      setStep('Bubblemaps', 'fail');
+      return null;
+    }
+    setStep('Bubblemaps', 'done');
+    return data;
+  } catch(e) {
+    setStep('Bubblemaps', 'fail');
+    return null;
+  }
+}
+
 /* ═══════════════════════════════════════════
    MAIN ANALYZE
    ═══════════════════════════════════════════ */
@@ -450,17 +471,18 @@ async function analyze(forcedMint) {
   renderHistory();
   $('goBtn').disabled = true;
   $('results').innerHTML = '';
-  initProgress(['RugCheck', 'Jupiter', 'Meteora']);
+  initProgress(['RugCheck', 'Jupiter', 'Meteora', 'Bubblemaps']);
 
   // Fetch all in parallel
-  const [rugcheck, jupiter, meteora] = await Promise.all([
+  const [rugcheck, jupiter, meteora, bubblemaps] = await Promise.all([
     fetchRugCheck(mint),
     fetchJupiter(mint),
     fetchMeteora(mint),
+    fetchBubblemaps(mint),
   ]);
 
   // Build results
-  renderResults(mint, rugcheck, jupiter, meteora);
+  renderResults(mint, rugcheck, jupiter, meteora, bubblemaps);
   pushHistory({
     mint,
     name: jupiter?.name || rugcheck?.tokenMeta?.name || 'Unknown Token',
@@ -560,7 +582,7 @@ function card(label, value, displayValue, key, sub) {
   </div>`;
 }
 
-function renderResults(mint, rc, jup, met) {
+function renderResults(mint, rc, jup, met, bubble) {
   let h = '';
 
   // ── Token header ──
@@ -648,7 +670,8 @@ function renderResults(mint, rc, jup, met) {
     jup?.audit?.devPercentage,
     jup?.holderMetrics?.devPercentage,
     jup?.holderMetrics?.developerPercentage,
-    jup?.devPercentage
+    jup?.devPercentage,
+    bubble?.largestClusterShare
   );
   const snipersH = pct(
     jup?.audit?.snipersPercentage,
@@ -656,7 +679,13 @@ function renderResults(mint, rc, jup, met) {
     jup?.audit?.sniperPct,
     jup?.holderMetrics?.snipersPercentage,
     jup?.holderMetrics?.sniperPercentage,
-    jup?.snipersPercentage
+    jup?.snipersPercentage,
+    bubble?.suspiciousShare
+  );
+  const bundlersH = pct(
+    jup?.audit?.bundlersPercentage,
+    jup?.audit?.bundlerPercentage,
+    bubble?.bundledShare
   );
   const freezeDisabled = jup?.audit?.freezeAuthorityDisabled;
   const mintDisabled = jup?.audit?.mintAuthorityDisabled;
@@ -753,12 +782,22 @@ function renderResults(mint, rc, jup, met) {
   // ── JUPITER AUDIT ──
   h += '<div class="section"><div class="stitle"><span class="icon">🪐</span> Jupiter Audit</div><div class="grid">';
   h += card('Top 10 H.', topH, topH != null ? topH.toFixed(2)+'%' : 'N/A', 'top_holders_pct');
-  h += card('Dev H.', devH, devH != null ? devH.toFixed(2)+'%' : 'N/A', 'bundlers_pct');
+  h += card('Bundlers', bundlersH, bundlersH != null ? bundlersH.toFixed(2)+'%' : 'N/A', 'bundlers_pct', bubble ? 'Bubblemaps fallback enabled' : '');
+  h += card('Insiders', devH, devH != null ? devH.toFixed(2)+'%' : 'N/A', 'bundlers_pct', bubble?.largestClusterShare != null ? 'Largest cluster share fallback' : '');
   h += card('Snipers H.', snipersH, snipersH != null ? snipersH.toFixed(2)+'%' : 'N/A', 'phishing_pct');
   h += `<div class="card ${freezeDisabled === true ? 'green' : freezeDisabled === false ? 'red' : ''}"><div class="label">Freeze Auth</div><div class="value" style="font-size:16px">${esc(yesNo(freezeDisabled === null ? null : !freezeDisabled))}</div></div>`;
   h += `<div class="card ${mintDisabled === true ? 'green' : mintDisabled === false ? 'red' : ''}"><div class="label">Mint Auth</div><div class="value" style="font-size:16px">${esc(yesNo(mintDisabled === null ? null : !mintDisabled))}</div></div>`;
   h += `<div class="card"><div class="label">Dex</div><div class="value" style="font-size:16px">${esc(dexLabel || 'N/A')}</div></div>`;
   h += '</div></div>';
+
+  if (bubble) {
+    h += '<div class="section"><div class="stitle"><span class="icon">🫧</span> Bubblemaps Signals</div><div class="grid">';
+    h += `<div class="card"><div class="label">Clusters</div><div class="value" style="font-size:16px">${esc(String(bubble.clusterCount ?? 'N/A'))}</div><div class="sub">Connected holder groups</div></div>`;
+    h += `<div class="card"><div class="label">Largest Cluster</div><div class="value" style="font-size:16px">${bubble.largestClusterShare != null ? esc(bubble.largestClusterShare.toFixed(2) + '%') : 'N/A'}</div><div class="sub">Potential insider concentration</div></div>`;
+    h += `<div class="card"><div class="label">Decentralization</div><div class="value" style="font-size:16px">${bubble.decentralizationScore != null ? esc(Number(bubble.decentralizationScore).toFixed(1)) : 'N/A'}</div><div class="sub">Bubblemaps score</div></div>`;
+    h += `<div class="card"><div class="label">Magic Nodes</div><div class="value" style="font-size:16px">${esc(String(bubble.magicNodeCount ?? 'N/A'))}</div><div class="sub">Special detected entities</div></div>`;
+    h += '</div></div>';
+  }
 
   // ── TOKEN DETAILS ──
   h += '<div class="section"><div class="stitle"><span class="icon">ℹ️</span> Token Details</div><div class="grid">';
