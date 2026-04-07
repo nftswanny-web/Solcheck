@@ -475,6 +475,7 @@ function renderResults(mint, rc, jup, met) {
   );
   const primaryPool = Array.isArray(met) && met.length ? [...met].sort((a,b) => (num(b?.liquidity, b?.tvl) || 0) - (num(a?.liquidity, a?.tvl) || 0))[0] : null;
   const marketCap = num(jup?.marketCap, jup?.market_cap, jup?.fdv, jup?.mcap, rc?.tokenMeta?.marketCap);
+  const matchedTokenId = jup?.id || jup?.mint || null;
   const tokenAgeHours = ageFromTimestamp(
     jup?.createdAt,
     jup?.created_at,
@@ -594,6 +595,7 @@ function renderResults(mint, rc, jup, met) {
   h += card('Fees Paid', totalFees24h, totalFees24h != null ? fmSol(totalFees24h) : 'N/A', 'total_fees_sol', primaryPool ? 'Primary source fallback applied' : '');
   h += card('Liquidity', totalLiquidity, totalLiquidity != null ? fm(totalLiquidity) : 'N/A', 'market_cap', Array.isArray(met) && met.length ? `${met.length} pools` : '');
   h += '</div></div>';
+  h += `<div class="section"><div class="err">Jupiter debug: matchedId=${esc(String(matchedTokenId || 'N/A'))} | symbol=${esc(String(jup?.symbol || 'N/A'))} | fees=${esc(String(jup?.fees ?? 'N/A'))}</div></div>`;
   if (totalFees24h == null && feesDebug.length) {
     h += `<div class="section"><div class="err">Fees debug: ${esc(feesDebug.map(([k,v]) => `${k}=${v}`).join(' | '))}</div></div>`;
   }
