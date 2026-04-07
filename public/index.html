@@ -495,11 +495,33 @@ function renderResults(mint, rc, jup, met) {
     jup?.stats24h?.fees,
     jup?.fees24h,
     jup?.fees_24h,
+    jup?.stats?.fees,
+    jup?.stats?.fees24h,
+    jup?.stats?.fees_24h,
+    jup?.stats?.fee,
+    jup?.fee,
+    jup?.fee24h,
+    jup?.fee_24h,
     jup?.feesPaidSol,
     jup?.fees_paid_sol,
     primaryPool?.fees_paid_sol,
     primaryPool?.feesPaidSol
   );
+  const feesDebug = [
+    ['fees', jup?.fees],
+    ['stats24h.fees', jup?.stats24h?.fees],
+    ['fees24h', jup?.fees24h],
+    ['fees_24h', jup?.fees_24h],
+    ['stats.fees', jup?.stats?.fees],
+    ['stats.fees24h', jup?.stats?.fees24h],
+    ['stats.fees_24h', jup?.stats?.fees_24h],
+    ['stats.fee', jup?.stats?.fee],
+    ['fee', jup?.fee],
+    ['fee24h', jup?.fee24h],
+    ['fee_24h', jup?.fee_24h],
+    ['feesPaidSol', jup?.feesPaidSol],
+    ['fees_paid_sol', jup?.fees_paid_sol],
+  ].filter(([, value]) => value != null && value !== '');
   const totalLiquidity = num(
     jup?.liquidity,
     jup?.liquidityUsd,
@@ -572,6 +594,9 @@ function renderResults(mint, rc, jup, met) {
   h += card('Fees Paid', totalFees24h, totalFees24h != null ? fmSol(totalFees24h) : 'N/A', 'total_fees_sol', primaryPool ? 'Primary source fallback applied' : '');
   h += card('Liquidity', totalLiquidity, totalLiquidity != null ? fm(totalLiquidity) : 'N/A', 'market_cap', Array.isArray(met) && met.length ? `${met.length} pools` : '');
   h += '</div></div>';
+  if (totalFees24h == null && feesDebug.length) {
+    h += `<div class="section"><div class="err">Fees debug: ${esc(feesDebug.map(([k,v]) => `${k}=${v}`).join(' | '))}</div></div>`;
+  }
 
   // ── JUPITER AUDIT ──
   h += '<div class="section"><div class="stitle"><span class="icon">🪐</span> Jupiter Audit</div><div class="grid">';
