@@ -280,7 +280,7 @@ async function fetchRugCheck(mint) {
 async function fetchJupiter(mint) {
   setStep('Jupiter', 'loading');
   try {
-    const r = await fetch('https://lite-api.jup.ag/tokens/v2/search?query='+mint);
+    const r = await fetch('/api/jupiter?query='+encodeURIComponent(mint), { signal: AbortSignal.timeout(20000) });
     if (!r.ok) throw new Error('HTTP '+r.status);
     const d = await r.json();
     setStep('Jupiter', 'done');
