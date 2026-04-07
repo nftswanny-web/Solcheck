@@ -51,6 +51,8 @@ module.exports = async (req, res) => {
     ];
 
     let lastError = null;
+    let merged = null;
+    const matchedSources = [];
 
     for (const endpoint of endpoints) {
       try {
@@ -70,16 +72,50 @@ module.exports = async (req, res) => {
         if (endpoint.type === 'html') {
           const html = await response.text();
           const data = extractJupiterTokenFromHtml(html, query);
-          if (data) return res.status(200).json(data);
+          if (data) {
+            merged = merged
+              ? {
+                  ...merged,
+                  ...data,
+                  audit: { ...(merged.audit || {}), ...(data.audit || {}) },
+                  firstPool: { ...(merged.firstPool || {}), ...(data.firstPool || {}) },
+                  stats5m: { ...(merged.stats5m || {}), ...(data.stats5m || {}) },
+                  stats1h: { ...(merged.stats1h || {}), ...(data.stats1h || {}) },
+                  stats6h: { ...(merged.stats6h || {}), ...(data.stats6h || {}) },
+                  stats24h: { ...(merged.stats24h || {}), ...(data.stats24h || {}) },
+                }
+              : data;
+            matchedSources.push('html');
+          }
           lastError = 'Could not extract token data from Jupiter HTML';
           continue;
         }
 
         const data = await response.json();
-        return res.status(200).json(data);
+        const match = Array.isArray(data) ? (data.find((t) => t.id === query) || data[0] || null) : data;
+        if (match) {
+          merged = merged
+            ? {
+                ...merged,
+                ...match,
+                audit: { ...(merged.audit || {}), ...(match.audit || {}) },
+                firstPool: { ...(merged.firstPool || {}), ...(match.firstPool || {}) },
+                stats5m: { ...(merged.stats5m || {}), ...(match.stats5m || {}) },
+                stats1h: { ...(merged.stats1h || {}), ...(match.stats1h || {}) },
+                stats6h: { ...(merged.stats6h || {}), ...(match.stats6h || {}) },
+                stats24h: { ...(merged.stats24h || {}), ...(match.stats24h || {}) },
+              }
+            : match;
+          matchedSources.push(endpoint.url.includes('lite-api') ? 'lite' : 'api');
+        }
       } catch (err) {
         lastError = err.message;
       }
+    }
+
+    if (merged) {
+      merged.__sources = matchedSources;
+      return res.status(200).json(merged);
     }
 
     return res.status(502).json({ error: 'jupiter_proxy_error', message: lastError || 'Unknown Jupiter error' });
