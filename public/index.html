@@ -85,18 +85,12 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-se
 .chart-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .chart-title{font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.08em}
 .chart-price{font-size:14px;font-weight:800;font-family:'JetBrains Mono',monospace}
-.chart-preview{display:flex;flex-direction:column;justify-content:space-between;min-height:148px;border:1px solid rgba(124,92,252,.18);border-radius:12px;background:
+.chart-preview{border:1px solid rgba(124,92,252,.18);border-radius:12px;background:
   radial-gradient(circle at top right, rgba(124,92,252,.18), transparent 38%),
   linear-gradient(180deg, rgba(17,17,37,.98), rgba(9,9,20,.98));padding:14px}
-.chart-preview-title{font-size:15px;font-weight:800;line-height:1.2}
-.chart-preview-sub{margin-top:6px;color:var(--t2);font-size:11px;line-height:1.5}
-.chart-actions{display:flex;gap:8px;margin-top:12px}
+.chart-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .chart-link{flex:1;display:inline-flex;align-items:center;justify-content:center;padding:10px 12px;border-radius:10px;border:1px solid var(--brd);background:rgba(124,92,252,.10);color:var(--t);font-size:11px;font-weight:700;text-decoration:none;cursor:pointer}
 .chart-link:hover{border-color:var(--ac);background:rgba(124,92,252,.16)}
-.chart-open{margin-top:8px;width:100%;padding:9px 10px;border-radius:10px;border:1px solid var(--brd);background:rgba(124,92,252,.10);color:var(--t);font-size:11px;font-weight:700;cursor:pointer}
-.chart-open:hover{border-color:var(--ac);background:rgba(124,92,252,.16)}
-.embed-card{padding:8px}
-.embed-frame{width:100%;border:0;border-radius:12px;overflow:hidden;background:#090914}
 .focus-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:10px}
 .focus-chip{border:1px solid var(--brd);border-radius:10px;background:rgba(6,6,16,.45);padding:8px}
 .focus-chip .k{font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}
@@ -711,13 +705,11 @@ function renderResults(mint, rc, jup, met) {
   const chartUrl = chartPairAddress
     ? `https://dexscreener.com/solana/${encodeURIComponent(chartPairAddress)}?embed=1&loadChartSettings=0&chartLeftToolbar=0&chartTheme=dark&theme=dark&chartStyle=0&chartType=usd&interval=5`
     : '';
-  const geckoSecurityUrl = chartPairAddress
-    ? `https://www.geckoterminal.com/solana/pools/${encodeURIComponent(chartPairAddress)}/security?size=max&color=dark`
-    : '';
   const chartExternalUrl = chartPairAddress
     ? `https://dexscreener.com/solana/${encodeURIComponent(chartPairAddress)}`
     : `https://dexscreener.com/solana/${encodeURIComponent(mint)}`;
   const jupiterTokenUrl = `https://jup.ag/tokens/${encodeURIComponent(mint)}`;
+  const gmgnChartUrl = gmgnUrl;
   const stats5m = jup?.stats5m || {};
   const buyVol5m = num(stats5m?.buyVolume);
   const sellVol5m = num(stats5m?.sellVolume);
@@ -752,13 +744,9 @@ function renderResults(mint, rc, jup, met) {
           <div class="chart-price">${esc(jup?.usdPrice != null ? fm(jup.usdPrice, 6) : 'N/A')}</div>
         </div>
         <div class="chart-preview">
-          <div>
-            <div class="chart-preview-title">Open the chart in a larger view</div>
-            <div class="chart-preview-sub">${chartUrl ? 'The popup opens a readable 5m DexScreener chart.' : 'No direct embed found for this token, but you can still open an external chart page.'}</div>
-          </div>
           <div class="chart-actions">
-            ${chartUrl ? `<button class="chart-open" style="margin-top:0" onclick="openChartOverlay('${esc(name)} chart', '${esc(chartUrl)}')">Open large chart</button>` : ''}
             <a class="chart-link" href="${chartExternalUrl}" target="_blank" rel="noopener noreferrer">DexScreener</a>
+            <a class="chart-link" href="${gmgnChartUrl}" target="_blank" rel="noopener noreferrer">GMGN</a>
             <a class="chart-link" href="${jupiterTokenUrl}" target="_blank" rel="noopener noreferrer">Jupiter</a>
           </div>
         </div>
@@ -791,6 +779,10 @@ function renderResults(mint, rc, jup, met) {
   h += '<div class="section"><div class="stitle"><span class="icon">💰</span> Market Data</div><div class="grid">';
   h += card('Fees Paid', totalFees24h, totalFees24h != null ? fmSol(totalFees24h) : 'N/A', 'total_fees_sol', primaryPool ? 'Primary source fallback applied' : '');
   h += card('Liquidity', totalLiquidity, totalLiquidity != null ? fm(totalLiquidity) : 'N/A', 'market_cap', Array.isArray(met) && met.length ? `${met.length} pools` : '');
+  h += card('Top 10 H.', topH, topH != null ? topH.toFixed(2)+'%' : 'N/A', 'top_holders_pct');
+  h += `<div class="card ${freezeDisabled === true ? 'green' : freezeDisabled === false ? 'red' : ''}"><div class="label">Freeze Auth</div><div class="value" style="font-size:16px">${esc(yesNo(freezeDisabled === null ? null : !freezeDisabled))}</div></div>`;
+  h += `<div class="card ${mintDisabled === true ? 'green' : mintDisabled === false ? 'red' : ''}"><div class="label">Mint Auth</div><div class="value" style="font-size:16px">${esc(yesNo(mintDisabled === null ? null : !mintDisabled))}</div></div>`;
+  h += `<div class="card"><div class="label">Dex</div><div class="value" style="font-size:16px">${esc(dexLabel || 'N/A')}</div></div>`;
   h += '</div></div>';
 
   h += '<div class="section"><div class="stitle"><span class="icon">📈</span> Performance & Volume</div><div class="grid">';
@@ -804,21 +796,12 @@ function renderResults(mint, rc, jup, met) {
   });
   h += '</div></div>';
 
-  // ── JUPITER AUDIT ──
-  h += '<div class="section"><div class="stitle"><span class="icon">🪐</span> Jupiter Audit</div><div class="grid">';
-  h += card('Top 10 H.', topH, topH != null ? topH.toFixed(2)+'%' : 'N/A', 'top_holders_pct');
+  // ── HOLDER SIGNALS ──
+  h += '<div class="section"><div class="stitle"><span class="icon">🪐</span> Holder Signals</div><div class="grid">';
   h += card('Bundlers', bundlersH, bundlersH != null ? bundlersH.toFixed(2)+'%' : 'N/A', 'bundlers_pct');
   h += card('Insiders', devH, devH != null ? devH.toFixed(2)+'%' : 'N/A', 'bundlers_pct');
   h += card('Snipers H.', snipersH, snipersH != null ? snipersH.toFixed(2)+'%' : 'N/A', 'phishing_pct');
-  h += `<div class="card ${freezeDisabled === true ? 'green' : freezeDisabled === false ? 'red' : ''}"><div class="label">Freeze Auth</div><div class="value" style="font-size:16px">${esc(yesNo(freezeDisabled === null ? null : !freezeDisabled))}</div></div>`;
-  h += `<div class="card ${mintDisabled === true ? 'green' : mintDisabled === false ? 'red' : ''}"><div class="label">Mint Auth</div><div class="value" style="font-size:16px">${esc(yesNo(mintDisabled === null ? null : !mintDisabled))}</div></div>`;
-  h += `<div class="card"><div class="label">Dex</div><div class="value" style="font-size:16px">${esc(dexLabel || 'N/A')}</div></div>`;
   h += '</div></div>';
-
-  if (geckoSecurityUrl) {
-    h += '<div class="section"><div class="stitle"><span class="icon">🦎</span> GeckoTerminal Security Card</div>';
-    h += `<div class="card embed-card"><iframe class="embed-frame" height="520" title="GeckoTerminal Security Card" src="${geckoSecurityUrl}" frameborder="0" allow="clipboard-write" allowfullscreen></iframe></div></div>`;
-  }
 
   // ── TOKEN DETAILS ──
   h += '<div class="section"><div class="stitle"><span class="icon">ℹ️</span> Token Details</div><div class="grid">';
@@ -851,9 +834,6 @@ function renderResults(mint, rc, jup, met) {
     });
     h += '</div></div>';
   }
-
-  h += '<div class="section"><div class="stitle"><span class="icon">🫧</span> Holder Bubble Map</div>';
-  h += `<div class="card" style="padding:8px"><iframe src="${bubbleMapsUrl}" title="Bubblemaps" style="width:100%;height:560px;border:0;border-radius:10px;background:#050816"></iframe></div></div>`;
 
   // ── METEORA POOLS ──
   h += '<div class="section"><div class="stitle"><span class="icon">💧</span> Meteora DLMM Pools</div>';
