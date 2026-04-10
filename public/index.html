@@ -85,9 +85,16 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-se
 .chart-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .chart-title{font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.08em}
 .chart-price{font-size:14px;font-weight:800;font-family:'JetBrains Mono',monospace}
-.chart-embed{position:relative;width:100%;height:220px;border:1px solid rgba(124,92,252,.18);border-radius:10px;overflow:hidden;background:#090914}
-.chart-embed iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
-.chart-caption{display:flex;justify-content:space-between;margin-top:6px;color:var(--t2);font-size:9px;text-transform:uppercase;letter-spacing:.06em}
+.chart-preview{display:flex;flex-direction:column;justify-content:space-between;min-height:148px;border:1px solid rgba(124,92,252,.18);border-radius:12px;background:
+  radial-gradient(circle at top right, rgba(124,92,252,.18), transparent 38%),
+  linear-gradient(180deg, rgba(17,17,37,.98), rgba(9,9,20,.98));padding:14px}
+.chart-preview-title{font-size:15px;font-weight:800;line-height:1.2}
+.chart-preview-sub{margin-top:6px;color:var(--t2);font-size:11px;line-height:1.5}
+.chart-actions{display:flex;gap:8px;margin-top:12px}
+.chart-link{flex:1;display:inline-flex;align-items:center;justify-content:center;padding:10px 12px;border-radius:10px;border:1px solid var(--brd);background:rgba(124,92,252,.10);color:var(--t);font-size:11px;font-weight:700;text-decoration:none;cursor:pointer}
+.chart-link:hover{border-color:var(--ac);background:rgba(124,92,252,.16)}
+.chart-open{margin-top:8px;width:100%;padding:9px 10px;border-radius:10px;border:1px solid var(--brd);background:rgba(124,92,252,.10);color:var(--t);font-size:11px;font-weight:700;cursor:pointer}
+.chart-open:hover{border-color:var(--ac);background:rgba(124,92,252,.16)}
 .focus-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:10px}
 .focus-chip{border:1px solid var(--brd);border-radius:10px;background:rgba(6,6,16,.45);padding:8px}
 .focus-chip .k{font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}
@@ -125,6 +132,11 @@ tr:hover td{background:rgba(124,92,252,.03)}
 .panel{background:var(--s1);border:1px solid var(--brd);border-radius:14px;padding:22px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto}
 .panel h2{font-size:16px;font-weight:800;margin-bottom:14px}
 .panel .close{float:right;background:none;border:none;color:var(--t2);font-size:20px;cursor:pointer}
+.chart-modal{background:rgba(6,6,16,.98);border:1px solid var(--brd);border-radius:16px;padding:16px;max-width:1120px;width:100%;max-height:90vh;overflow:hidden}
+.chart-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.chart-modal-title{font-size:14px;font-weight:800}
+.chart-modal-frame{width:100%;height:min(74vh,780px);border:1px solid rgba(124,92,252,.18);border-radius:12px;overflow:hidden;background:#090914}
+.chart-modal-frame iframe{width:100%;height:100%;border:0}
 .setting-row{display:grid;grid-template-columns:1fr 70px 70px 70px;gap:6px;align-items:center;margin-bottom:8px;font-size:11px}
 .setting-row .slbl{font-weight:600;font-size:11px}
 .setting-row input{padding:5px 7px;border-radius:5px;border:1px solid var(--brd);background:var(--in);color:var(--t);font:11px 'JetBrains Mono',monospace;outline:none;width:100%;text-align:center}
@@ -186,6 +198,16 @@ tr:hover td{background:rgba(124,92,252,.03)}
   </div>
 </div>
 
+<div class="overlay" id="chartOverlay">
+  <div class="chart-modal">
+    <div class="chart-modal-head">
+      <div class="chart-modal-title" id="chartModalTitle">Token Chart</div>
+      <button class="close" onclick="closeChartOverlay()">✕</button>
+    </div>
+    <div class="chart-modal-frame" id="chartModalFrame"></div>
+  </div>
+</div>
+
 <div class="ft">DLMM CHECKER v1.0 — Data from RugCheck, Jupiter, Meteora — Not financial advice. DYOR.</div>
 
 <!-- SETTINGS OVERLAY -->
@@ -220,6 +242,7 @@ const DEFAULT_SETTINGS = {
 let settings = {};
 let scanHistory = [];
 let currentMint = '';
+let currentChartUrl = '';
 function loadSettings() {
   try { settings = JSON.parse(localStorage.getItem('solcheck_settings')) || {}; } catch(e) {}
   for (const [k,v] of Object.entries(DEFAULT_SETTINGS)) {
@@ -295,6 +318,17 @@ function openSettings() {
   renderSettingsRows();
 }
 function closeSettings() { document.getElementById('settingsOverlay').classList.remove('open'); }
+function openChartOverlay(title, url) {
+  if (!url) return;
+  currentChartUrl = url;
+  $('chartModalTitle').textContent = title || 'Token Chart';
+  $('chartModalFrame').innerHTML = `<iframe src="${url}" title="${esc(title || 'Token Chart')}" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>`;
+  $('chartOverlay').classList.add('open');
+}
+function closeChartOverlay() {
+  $('chartOverlay').classList.remove('open');
+  $('chartModalFrame').innerHTML = '';
+}
 function renderSettingsRows() {
   let h = '';
   for (const [k, def] of Object.entries(DEFAULT_SETTINGS)) {
@@ -439,27 +473,6 @@ async function fetchMeteora(mint) {
   } catch(e) { setStep('Meteora', 'fail'); return []; }
 }
 
-// 4. BUBBLEMAPS
-async function fetchBubblemaps(mint) {
-  setStep('Bubblemaps', 'loading');
-  try {
-    const r = await fetch('/api/bubblemaps?mint=' + encodeURIComponent(mint), {
-      signal: AbortSignal.timeout(30000),
-    });
-    const data = await r.json().catch(() => null);
-    if (!r.ok) throw new Error(data?.message || ('HTTP ' + r.status));
-    if (!data?.available) {
-      setStep('Bubblemaps', 'fail');
-      return null;
-    }
-    setStep('Bubblemaps', 'done');
-    return data;
-  } catch(e) {
-    setStep('Bubblemaps', 'fail');
-    return null;
-  }
-}
-
 /* ═══════════════════════════════════════════
    MAIN ANALYZE
    ═══════════════════════════════════════════ */
@@ -471,18 +484,17 @@ async function analyze(forcedMint) {
   renderHistory();
   $('goBtn').disabled = true;
   $('results').innerHTML = '';
-  initProgress(['RugCheck', 'Jupiter', 'Meteora', 'Bubblemaps']);
+  initProgress(['RugCheck', 'Jupiter', 'Meteora']);
 
   // Fetch all in parallel
-  const [rugcheck, jupiter, meteora, bubblemaps] = await Promise.all([
+  const [rugcheck, jupiter, meteora] = await Promise.all([
     fetchRugCheck(mint),
     fetchJupiter(mint),
     fetchMeteora(mint),
-    fetchBubblemaps(mint),
   ]);
 
   // Build results
-  renderResults(mint, rugcheck, jupiter, meteora, bubblemaps);
+  renderResults(mint, rugcheck, jupiter, meteora);
   pushHistory({
     mint,
     name: jupiter?.name || rugcheck?.tokenMeta?.name || 'Unknown Token',
@@ -582,7 +594,7 @@ function card(label, value, displayValue, key, sub) {
   </div>`;
 }
 
-function renderResults(mint, rc, jup, met, bubble) {
+function renderResults(mint, rc, jup, met) {
   let h = '';
 
   // ── Token header ──
@@ -670,8 +682,7 @@ function renderResults(mint, rc, jup, met, bubble) {
     jup?.audit?.devPercentage,
     jup?.holderMetrics?.devPercentage,
     jup?.holderMetrics?.developerPercentage,
-    jup?.devPercentage,
-    bubble?.largestClusterShare
+    jup?.devPercentage
   );
   const snipersH = pct(
     jup?.audit?.snipersPercentage,
@@ -679,13 +690,11 @@ function renderResults(mint, rc, jup, met, bubble) {
     jup?.audit?.sniperPct,
     jup?.holderMetrics?.snipersPercentage,
     jup?.holderMetrics?.sniperPercentage,
-    jup?.snipersPercentage,
-    bubble?.suspiciousShare
+    jup?.snipersPercentage
   );
   const bundlersH = pct(
     jup?.audit?.bundlersPercentage,
-    jup?.audit?.bundlerPercentage,
-    bubble?.bundledShare
+    jup?.audit?.bundlerPercentage
   );
   const freezeDisabled = jup?.audit?.freezeAuthorityDisabled;
   const mintDisabled = jup?.audit?.mintAuthorityDisabled;
@@ -696,10 +705,14 @@ function renderResults(mint, rc, jup, met, bubble) {
     { label: '6h', change: num(jup?.stats6h?.priceChange), volume: num(jup?.stats6h?.buyVolume, 0) + num(jup?.stats6h?.sellVolume, 0) },
     { label: '24h', change: num(jup?.stats24h?.priceChange), volume: num(jup?.stats24h?.buyVolume, 0) + num(jup?.stats24h?.sellVolume, 0) },
   ];
-  const chartPairAddress = primaryPool?.address || jup?.graduatedPool || jup?.firstPool?.id || mint;
+  const chartPairAddress = primaryPool?.address || jup?.graduatedPool || '';
   const chartUrl = chartPairAddress
     ? `https://dexscreener.com/solana/${encodeURIComponent(chartPairAddress)}?embed=1&loadChartSettings=0&chartLeftToolbar=0&chartTheme=dark&theme=dark&chartStyle=0&chartType=usd&interval=5`
     : '';
+  const chartExternalUrl = chartPairAddress
+    ? `https://dexscreener.com/solana/${encodeURIComponent(chartPairAddress)}`
+    : `https://dexscreener.com/solana/${encodeURIComponent(mint)}`;
+  const jupiterTokenUrl = `https://jup.ag/tokens/${encodeURIComponent(mint)}`;
   const stats5m = jup?.stats5m || {};
   const buyVol5m = num(stats5m?.buyVolume);
   const sellVol5m = num(stats5m?.sellVolume);
@@ -733,10 +746,17 @@ function renderResults(mint, rc, jup, met, bubble) {
           <div class="chart-title">Token Chart</div>
           <div class="chart-price">${esc(jup?.usdPrice != null ? fm(jup.usdPrice, 6) : 'N/A')}</div>
         </div>
-        ${chartUrl
-          ? `<div class="chart-embed"><iframe src="${chartUrl}" title="DexScreener chart" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>
-             <div class="chart-caption"><span>DexScreener embed</span><span>5m focus</span></div>`
-          : '<div style="height:220px;display:flex;align-items:center;justify-content:center;color:var(--t2);font-size:11px">No embeddable chart</div>'}
+        <div class="chart-preview">
+          <div>
+            <div class="chart-preview-title">Open the chart in a larger view</div>
+            <div class="chart-preview-sub">${chartUrl ? 'The popup opens a readable 5m DexScreener chart.' : 'No direct embed found for this token, but you can still open an external chart page.'}</div>
+          </div>
+          <div class="chart-actions">
+            ${chartUrl ? `<button class="chart-open" style="margin-top:0" onclick="openChartOverlay('${esc(name)} chart', '${esc(chartUrl)}')">Open large chart</button>` : ''}
+            <a class="chart-link" href="${chartExternalUrl}" target="_blank" rel="noopener noreferrer">DexScreener</a>
+            <a class="chart-link" href="${jupiterTokenUrl}" target="_blank" rel="noopener noreferrer">Jupiter</a>
+          </div>
+        </div>
         <div class="focus-grid">
           <div class="focus-chip"><div class="k">5m change</div><div class="v ${change5m == null ? '' : change5m >= 0 ? 'green' : 'red'}">${esc(fmtPct(change5m))}</div></div>
           <div class="focus-chip"><div class="k">5m volume</div><div class="v">${esc(fmtVol(num(buyVol5m,0)+num(sellVol5m,0)))}</div></div>
@@ -782,22 +802,13 @@ function renderResults(mint, rc, jup, met, bubble) {
   // ── JUPITER AUDIT ──
   h += '<div class="section"><div class="stitle"><span class="icon">🪐</span> Jupiter Audit</div><div class="grid">';
   h += card('Top 10 H.', topH, topH != null ? topH.toFixed(2)+'%' : 'N/A', 'top_holders_pct');
-  h += card('Bundlers', bundlersH, bundlersH != null ? bundlersH.toFixed(2)+'%' : 'N/A', 'bundlers_pct', bubble ? 'Bubblemaps fallback enabled' : '');
-  h += card('Insiders', devH, devH != null ? devH.toFixed(2)+'%' : 'N/A', 'bundlers_pct', bubble?.largestClusterShare != null ? 'Largest cluster share fallback' : '');
+  h += card('Bundlers', bundlersH, bundlersH != null ? bundlersH.toFixed(2)+'%' : 'N/A', 'bundlers_pct');
+  h += card('Insiders', devH, devH != null ? devH.toFixed(2)+'%' : 'N/A', 'bundlers_pct');
   h += card('Snipers H.', snipersH, snipersH != null ? snipersH.toFixed(2)+'%' : 'N/A', 'phishing_pct');
   h += `<div class="card ${freezeDisabled === true ? 'green' : freezeDisabled === false ? 'red' : ''}"><div class="label">Freeze Auth</div><div class="value" style="font-size:16px">${esc(yesNo(freezeDisabled === null ? null : !freezeDisabled))}</div></div>`;
   h += `<div class="card ${mintDisabled === true ? 'green' : mintDisabled === false ? 'red' : ''}"><div class="label">Mint Auth</div><div class="value" style="font-size:16px">${esc(yesNo(mintDisabled === null ? null : !mintDisabled))}</div></div>`;
   h += `<div class="card"><div class="label">Dex</div><div class="value" style="font-size:16px">${esc(dexLabel || 'N/A')}</div></div>`;
   h += '</div></div>';
-
-  if (bubble) {
-    h += '<div class="section"><div class="stitle"><span class="icon">🫧</span> Bubblemaps Signals</div><div class="grid">';
-    h += `<div class="card"><div class="label">Clusters</div><div class="value" style="font-size:16px">${esc(String(bubble.clusterCount ?? 'N/A'))}</div><div class="sub">Connected holder groups</div></div>`;
-    h += `<div class="card"><div class="label">Largest Cluster</div><div class="value" style="font-size:16px">${bubble.largestClusterShare != null ? esc(bubble.largestClusterShare.toFixed(2) + '%') : 'N/A'}</div><div class="sub">Potential insider concentration</div></div>`;
-    h += `<div class="card"><div class="label">Decentralization</div><div class="value" style="font-size:16px">${bubble.decentralizationScore != null ? esc(Number(bubble.decentralizationScore).toFixed(1)) : 'N/A'}</div><div class="sub">Bubblemaps score</div></div>`;
-    h += `<div class="card"><div class="label">Magic Nodes</div><div class="value" style="font-size:16px">${esc(String(bubble.magicNodeCount ?? 'N/A'))}</div><div class="sub">Special detected entities</div></div>`;
-    h += '</div></div>';
-  }
 
   // ── TOKEN DETAILS ──
   h += '<div class="section"><div class="stitle"><span class="icon">ℹ️</span> Token Details</div><div class="grid">';
@@ -876,6 +887,7 @@ function renderResults(mint, rc, jup, met, bubble) {
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && document.activeElement === $('ca') && !$('goBtn').disabled) analyze();
   if (e.key === 'Escape') closeSettings();
+  if (e.key === 'Escape') closeChartOverlay();
 });
 renderHistory();
 </script>
