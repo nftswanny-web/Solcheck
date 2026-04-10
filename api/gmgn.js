@@ -11,8 +11,8 @@ module.exports = async (req, res) => {
     const path = source.path;
     if (!path) return res.status(400).json({ error: 'Missing ?path=' });
 
-    const apiKey = source.apikey || '';
-    const routeKey = source.routeKey || apiKey;
+    const apiKey = source.apikey || process.env.GMGN_API_KEY || process.env.GMGN_AGENT_API_KEY || '';
+    const routeKey = source.routeKey || process.env.GMGN_ROUTE_KEY || apiKey;
     const method = (source.method || 'GET').toUpperCase();
     const body = source.body;
     const fullUrl = 'https://gmgn.ai' + path;
