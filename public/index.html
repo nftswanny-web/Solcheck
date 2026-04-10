@@ -796,12 +796,13 @@ function renderResults(mint, rc, jup, met) {
   });
   h += '</div></div>';
 
-  // ── HOLDER SIGNALS ──
-  h += '<div class="section"><div class="stitle"><span class="icon">🪐</span> Holder Signals</div><div class="grid">';
-  h += card('Bundlers', bundlersH, bundlersH != null ? bundlersH.toFixed(2)+'%' : 'N/A', 'bundlers_pct');
-  h += card('Insiders', devH, devH != null ? devH.toFixed(2)+'%' : 'N/A', 'bundlers_pct');
-  h += card('Snipers H.', snipersH, snipersH != null ? snipersH.toFixed(2)+'%' : 'N/A', 'phishing_pct');
-  h += '</div></div>';
+  // ── HOLDER SIGNALS (hidden for now) ──
+  const hiddenHolderSignals = '<div class="section" style="display:none"><div class="stitle"><span class="icon">🪐</span> Holder Signals</div><div class="grid">'
+    + card('Bundlers', bundlersH, bundlersH != null ? bundlersH.toFixed(2)+'%' : 'N/A', 'bundlers_pct')
+    + card('Insiders', devH, devH != null ? devH.toFixed(2)+'%' : 'N/A', 'bundlers_pct')
+    + card('Snipers H.', snipersH, snipersH != null ? snipersH.toFixed(2)+'%' : 'N/A', 'phishing_pct')
+    + '</div></div>';
+  h += hiddenHolderSignals;
 
   // ── TOKEN DETAILS ──
   h += '<div class="section"><div class="stitle"><span class="icon">ℹ️</span> Token Details</div><div class="grid">';
@@ -834,6 +835,9 @@ function renderResults(mint, rc, jup, met) {
     });
     h += '</div></div>';
   }
+
+  h += '<div class="section"><div class="stitle"><span class="icon">🫧</span> Holder Bubble Map</div>';
+  h += `<div class="card" style="padding:8px"><iframe src="${bubbleMapsUrl}" title="Bubblemaps" style="width:100%;height:560px;border:0;border-radius:10px;background:#050816"></iframe></div></div>`;
 
   // ── METEORA POOLS ──
   h += '<div class="section"><div class="stitle"><span class="icon">💧</span> Meteora DLMM Pools</div>';
