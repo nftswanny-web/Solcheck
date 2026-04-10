@@ -473,6 +473,24 @@ async function fetchMeteora(mint) {
   } catch(e) { setStep('Meteora', 'fail'); return []; }
 }
 
+// 4. GECKOTERMINAL
+async function fetchGeckoTerminal(poolAddress) {
+  if (!poolAddress) return null;
+  setStep('GeckoTerminal', 'loading');
+  try {
+    const r = await fetch('/api/geckoterminal?pool=' + encodeURIComponent(poolAddress), {
+      signal: AbortSignal.timeout(20000),
+    });
+    const data = await r.json().catch(() => null);
+    if (!r.ok) throw new Error(data?.message || ('HTTP ' + r.status));
+    setStep('GeckoTerminal', data?.found ? 'done' : 'fail');
+    return data;
+  } catch (e) {
+    setStep('GeckoTerminal', 'fail');
+    return null;
+  }
+}
+
 /* ═══════════════════════════════════════════
    MAIN ANALYZE
    ═══════════════════════════════════════════ */
@@ -484,7 +502,7 @@ async function analyze(forcedMint) {
   renderHistory();
   $('goBtn').disabled = true;
   $('results').innerHTML = '';
-  initProgress(['RugCheck', 'Jupiter', 'Meteora']);
+  initProgress(['RugCheck', 'Jupiter', 'Meteora', 'GeckoTerminal']);
 
   // Fetch all in parallel
   const [rugcheck, jupiter, meteora] = await Promise.all([
@@ -492,9 +510,10 @@ async function analyze(forcedMint) {
     fetchJupiter(mint),
     fetchMeteora(mint),
   ]);
+  const gecko = await fetchGeckoTerminal(meteora?.[0]?.address || jupiter?.graduatedPool || jupiter?.firstPool?.id || null);
 
   // Build results
-  renderResults(mint, rugcheck, jupiter, meteora);
+  renderResults(mint, rugcheck, jupiter, meteora, gecko);
   pushHistory({
     mint,
     name: jupiter?.name || rugcheck?.tokenMeta?.name || 'Unknown Token',
@@ -594,7 +613,7 @@ function card(label, value, displayValue, key, sub) {
   </div>`;
 }
 
-function renderResults(mint, rc, jup, met) {
+function renderResults(mint, rc, jup, met, gecko) {
   let h = '';
 
   // ── Token header ──
@@ -693,9 +712,11 @@ function renderResults(mint, rc, jup, met) {
     jup?.snipersPercentage
   );
   const bundlersH = pct(
+    gecko?.bundledBuyPct,
     jup?.audit?.bundlersPercentage,
     jup?.audit?.bundlerPercentage
   );
+  const airdropPct = pct(gecko?.airdropPct);
   const freezeDisabled = jup?.audit?.freezeAuthorityDisabled;
   const mintDisabled = jup?.audit?.mintAuthorityDisabled;
   const dexLabel = jup?.dex || jup?.exchange || jup?.audit?.dex || primaryPool?.name || primaryPool?.pool_type || primaryPool?.dex || (jup?.tags?.includes('paid') ? 'Paid' : null);
@@ -802,13 +823,19 @@ function renderResults(mint, rc, jup, met) {
   // ── JUPITER AUDIT ──
   h += '<div class="section"><div class="stitle"><span class="icon">🪐</span> Jupiter Audit</div><div class="grid">';
   h += card('Top 10 H.', topH, topH != null ? topH.toFixed(2)+'%' : 'N/A', 'top_holders_pct');
-  h += card('Bundlers', bundlersH, bundlersH != null ? bundlersH.toFixed(2)+'%' : 'N/A', 'bundlers_pct');
+  h += card('Bundlers', bundlersH, bundlersH != null ? bundlersH.toFixed(2)+'%' : 'N/A', 'bundlers_pct', gecko?.bundledBuyPct != null ? 'GeckoTerminal bundled buy %' : '');
   h += card('Insiders', devH, devH != null ? devH.toFixed(2)+'%' : 'N/A', 'bundlers_pct');
   h += card('Snipers H.', snipersH, snipersH != null ? snipersH.toFixed(2)+'%' : 'N/A', 'phishing_pct');
   h += `<div class="card ${freezeDisabled === true ? 'green' : freezeDisabled === false ? 'red' : ''}"><div class="label">Freeze Auth</div><div class="value" style="font-size:16px">${esc(yesNo(freezeDisabled === null ? null : !freezeDisabled))}</div></div>`;
   h += `<div class="card ${mintDisabled === true ? 'green' : mintDisabled === false ? 'red' : ''}"><div class="label">Mint Auth</div><div class="value" style="font-size:16px">${esc(yesNo(mintDisabled === null ? null : !mintDisabled))}</div></div>`;
   h += `<div class="card"><div class="label">Dex</div><div class="value" style="font-size:16px">${esc(dexLabel || 'N/A')}</div></div>`;
   h += '</div></div>';
+
+  if (airdropPct != null) {
+    h += '<div class="section"><div class="stitle"><span class="icon">🦎</span> GeckoTerminal Signals</div><div class="grid">';
+    h += `<div class="card"><div class="label">Airdrop %</div><div class="value" style="font-size:16px">${esc(airdropPct.toFixed(2) + '%')}</div><div class="sub">GeckoTerminal pool page</div></div>`;
+    h += '</div></div>';
+  }
 
   // ── TOKEN DETAILS ──
   h += '<div class="section"><div class="stitle"><span class="icon">ℹ️</span> Token Details</div><div class="grid">';
