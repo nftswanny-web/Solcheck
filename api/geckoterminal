@@ -1,4 +1,4 @@
-const fetch = require('node-fetch');
+ const fetch = require('node-fetch');
 
 function normalizePercent(value) {
   if (value == null) return null;
