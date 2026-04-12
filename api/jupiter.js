@@ -1,4 +1,5 @@
 const fetch = require('node-fetch');
+const { applyCors, rateLimit } = require('./_utils');
 
 function extractJupiterTokenFromHtml(html, mint) {
   const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">\s*([\s\S]*?)<\/script>/i);
@@ -19,10 +20,10 @@ function extractJupiterTokenFromHtml(html, mint) {
 }
 
 module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', '*');
+  applyCors(req, res);
   if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' });
+  if (rateLimit(req, res, 'jupiter', 60 * 1000, 30)) return;
 
   try {
     const query = req.query.query;
