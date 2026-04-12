@@ -47,6 +47,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-se
 /* ─── RESULTS ─── */
 .app-shell{max-width:1180px;margin:20px auto;padding:0 20px;display:grid;grid-template-columns:260px minmax(0,1fr);gap:16px;align-items:start}
 .history{position:sticky;top:20px;border:1px solid var(--brd);border-radius:12px;background:var(--s1);padding:12px}
+.sidebar-block{margin-bottom:14px}
 .history-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
 .history-title{font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.06em}
 .history-actions{display:flex;gap:6px}
@@ -178,6 +179,9 @@ tr:hover td{background:rgba(124,92,252,.03)}
 
 <div class="app-shell">
   <aside class="history">
+    <div class="sidebar-block" id="sidebarMeteora">
+      <div class="history-item"><div class="history-meta">Meteora pools will appear here after a scan.</div></div>
+    </div>
     <div class="history-head">
       <div class="history-title">Recent Scans</div>
       <div class="history-actions">
@@ -278,6 +282,32 @@ function renderHistory() {
       </div>
     </div>
   `).join('');
+}
+function renderSidebarMeteora(met) {
+  const el = $('sidebarMeteora');
+  if (!el) return;
+  let h = '<div class="history-head"><div class="history-title">Meteora Pools</div></div>';
+  if (!Array.isArray(met) || !met.length) {
+    h += '<div class="history-item"><div class="history-meta">No Meteora DLMM pools found for this token.</div></div>';
+    el.innerHTML = h;
+    return;
+  }
+  const pools = [...met].sort((a, b) => (num(b?.liquidity, b?.tvl) || 0) - (num(a?.liquidity, a?.tvl) || 0)).slice(0, 4);
+  h += pools.map((p) => {
+    const pairName = p.name || ((p.token_x?.symbol || p.mint_x_symbol || '?') + '/' + (p.token_y?.symbol || p.mint_y_symbol || '?'));
+    const poolAddress = p.address || p.pair_address || '';
+    const tvl = num(p.liquidity, p.tvl);
+    const vol = num(p.trade_volume_24h, p.volume?.['24h'], p.volume_24h);
+    return `<div class="history-item">
+      <div class="history-token">${esc(pairName)}</div>
+      <div class="history-meta">${esc(sh(poolAddress))}</div>
+      <div class="history-meta">TVL ${esc(tvl != null ? fm(tvl) : 'N/A')} · Vol ${esc(vol != null ? fm(vol) : 'N/A')}</div>
+      <div class="history-row">
+        <a class="history-open" href="https://app.meteora.ag/dlmm/${esc(poolAddress)}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;text-align:center">Open</a>
+      </div>
+    </div>`;
+  }).join('');
+  el.innerHTML = h;
 }
 function openHistoryToken(mint) {
   $('ca').value = mint;
@@ -389,11 +419,30 @@ function updateProgress() {
 async function fetchRugCheck(mint) {
   setStep('RugCheck', 'loading');
   try {
-    const r = await fetch('https://api.rugcheck.xyz/v1/tokens/'+mint+'/report');
-    if (!r.ok) throw new Error('HTTP '+r.status);
-    const d = await r.json();
-    setStep('RugCheck', 'done');
-    return d;
+    const sources = [
+      { name: 'proxy', url: '/api/rugcheck?mint='+encodeURIComponent(mint) },
+      { name: 'api', url: 'https://api.rugcheck.xyz/v1/tokens/'+encodeURIComponent(mint)+'/report' },
+    ];
+    let lastError = 'Unknown RugCheck error';
+    for (const source of sources) {
+      try {
+        const r = await fetch(source.url, { signal: AbortSignal.timeout(20000) });
+        const d = await r.json().catch(() => null);
+        if (!r.ok) {
+          lastError = (d && (d.message || d.error)) || ('HTTP '+r.status);
+          continue;
+        }
+        if (d) {
+          d.__source = source.name;
+          setStep('RugCheck', 'done');
+          return d;
+        }
+        lastError = 'Empty RugCheck response';
+      } catch(e) {
+        lastError = e.message;
+      }
+    }
+    throw new Error(lastError);
   } catch(e) { setStep('RugCheck', 'fail'); return null; }
 }
 
@@ -482,6 +531,7 @@ async function analyze(forcedMint) {
   renderHistory();
   $('goBtn').disabled = true;
   $('results').innerHTML = '';
+  renderSidebarMeteora([]);
   initProgress(['RugCheck', 'Jupiter', 'Meteora']);
 
   // Fetch all in parallel
@@ -493,6 +543,7 @@ async function analyze(forcedMint) {
 
   // Build results
   renderResults(mint, rugcheck, jupiter, meteora);
+  renderSidebarMeteora(meteora);
   pushHistory({
     mint,
     name: jupiter?.name || rugcheck?.tokenMeta?.name || 'Unknown Token',
@@ -848,39 +899,6 @@ function renderResults(mint, rc, jup, met) {
 
   h += '<div class="section"><div class="stitle"><span class="icon">🫧</span> Holder Bubble Map</div>';
   h += `<div class="card" style="padding:8px"><iframe src="${bubbleMapsUrl}" title="Bubblemaps" style="width:100%;height:560px;border:0;border-radius:10px;background:#050816"></iframe></div></div>`;
-
-  // ── METEORA POOLS ──
-  h += '<div class="section"><div class="stitle"><span class="icon">💧</span> Meteora DLMM Pools</div>';
-  if (met && met.length) {
-    h += '<div class="tw"><table><thead><tr>';
-    ['Pool', 'Pair', 'Bin Step', 'Base Fee', 'TVL (USD)', 'Volume 24h', 'Fees 24h', 'Fee/TVL %', 'Liquidity'].forEach(c => h += '<th>'+c+'</th>');
-    h += '</tr></thead><tbody>';
-    met.forEach(p => {
-      const tvl = p.liquidity || p.tvl || 0;
-      const vol = p.trade_volume_24h || p.volume?.['24h'] || p.volume_24h || 0;
-      const fees = p.fees_24h || p.fees?.['24h'] || p.fee_24h || 0;
-      const feeTvl = p.fee_tvl_ratio?.['24h'] != null ? p.fee_tvl_ratio['24h'] : (tvl > 0 ? (fees / tvl * 100) : 0);
-      const pairName = p.name || ((p.token_x?.symbol || p.mint_x_symbol || '?')+'/'+(p.token_y?.symbol || p.mint_y_symbol || '?'));
-      const poolAddress = p.address || p.pair_address || '';
-      const binStep = p.bin_step || p.pool_config?.bin_step || '—';
-      const baseFeePct = p.base_fee_percentage != null ? p.base_fee_percentage : p.pool_config?.base_fee_pct;
-      h += `<tr>
-        <td><a href="https://app.meteora.ag/dlmm/${esc(poolAddress)}" target="_blank" style="color:var(--ac2);text-decoration:none">${sh(poolAddress)}</a></td>
-        <td>${esc(pairName)}</td>
-        <td>${binStep}</td>
-        <td>${baseFeePct != null ? baseFeePct+'%' : '—'}</td>
-        <td>${fm(tvl)}</td>
-        <td>${fm(vol)}</td>
-        <td>${fm(fees)}</td>
-        <td style="font-weight:700;color:${feeTvl>1?'var(--g)':feeTvl>0.3?'var(--y)':'var(--t2)'}">${feeTvl.toFixed(2)}%</td>
-        <td>${fm(p.liquidity)}</td>
-      </tr>`;
-    });
-    h += '</tbody></table></div>';
-  } else {
-    h += '<p style="font-size:11px;color:var(--t2)">No Meteora DLMM pools found for this token.</p>';
-  }
-  h += '</div>';
 
   $('results').innerHTML = h;
 }
