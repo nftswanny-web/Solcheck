@@ -38,6 +38,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-se
 .auth-copy strong{font-size:11px;color:var(--t)}
 .auth-copy span{font-size:9px;color:var(--t2)}
 .google-slot{min-height:40px;display:flex;align-items:center}
+.auth-note{font-size:10px;color:var(--t2);padding:8px 10px;border:1px dashed var(--brd);border-radius:999px}
 
 /* ─── SEARCH BAR ─── */
 .search{max-width:680px;margin:20px auto;padding:0 20px}
@@ -331,6 +332,7 @@ let publicConfig = {
   brand: 'DLMM CHECKER by SwannyDeFi',
 };
 let currentUser = null;
+let googleInitAttempts = 0;
 function loadSettings() {
   try { settings = JSON.parse(localStorage.getItem('solcheck_settings')) || {}; } catch(e) {}
   for (const [k,v] of Object.entries(DEFAULT_SETTINGS)) {
@@ -389,24 +391,36 @@ function handleGoogleCredentialResponse(response) {
   });
 }
 function initGoogleAuth() {
-  if (!window.google?.accounts?.id || !publicConfig.googleClientId) return;
+  const slot = $('googleSignIn');
+  if (!slot) return;
+  if (!publicConfig.googleClientId) {
+    slot.innerHTML = '<div class="auth-note">Google login not configured yet</div>';
+    return;
+  }
+  if (!window.google?.accounts?.id) {
+    googleInitAttempts += 1;
+    if (googleInitAttempts <= 20) {
+      setTimeout(initGoogleAuth, 500);
+    } else {
+      slot.innerHTML = '<div class="auth-note">Google script did not load</div>';
+    }
+    return;
+  }
   window.google.accounts.id.initialize({
     client_id: publicConfig.googleClientId,
     callback: handleGoogleCredentialResponse,
     auto_select: false,
     cancel_on_tap_outside: true,
   });
-  const slot = $('googleSignIn');
-  if (slot) {
-    slot.innerHTML = '';
-    window.google.accounts.id.renderButton(slot, {
-      theme: 'outline',
-      size: 'medium',
-      shape: 'pill',
-      text: 'signin_with',
-      logo_alignment: 'left',
-    });
-  }
+  slot.innerHTML = '';
+  window.google.accounts.id.renderButton(slot, {
+    theme: 'outline',
+    size: 'medium',
+    shape: 'pill',
+    text: 'signin_with',
+    logo_alignment: 'left',
+  });
+  window.google.accounts.id.prompt();
 }
 function signOutGoogle() {
   if (window.google?.accounts?.id) window.google.accounts.id.disableAutoSelect();
@@ -419,6 +433,10 @@ async function loadPublicConfig() {
     if (r.ok && data) publicConfig = { ...publicConfig, ...data };
   } catch (e) {}
   document.title = publicConfig.brand || 'DLMM CHECKER by SwannyDeFi';
+  const loginSlot = $('googleSignIn');
+  if (loginSlot && !publicConfig.googleClientId) {
+    loginSlot.innerHTML = '<div class="auth-note">Set GOOGLE_CLIENT_ID on Vercel</div>';
+  }
   const walletNode = $('supportWalletValue');
   if (walletNode) walletNode.textContent = publicConfig.supportWallet;
   const qrNode = $('supportQrImage');
