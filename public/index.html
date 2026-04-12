@@ -231,7 +231,7 @@ tr:hover td{background:rgba(124,92,252,.03)}
    ═══════════════════════════════════════════ */
 const DEFAULT_SETTINGS = {
   // name: [greenMax, yellowMax, direction]  direction: 'asc'=lower is better, 'desc'=higher is better
-  rugcheck_score:     { g: 3000, y: 8000, dir: 'asc', label: 'RugCheck Score' },
+  rugcheck_score:     { g: 80,   y: 50,   dir: 'desc', label: 'RugCheck Score (/100)' },
   organic_score:      { g: 80,   y: 50,   dir: 'desc', label: 'Jupiter Organic Score' },
   market_cap:         { g: 500000, y: 100000, dir: 'desc', label: 'Market Cap (USD)' },
   token_age_hours:    { g: 168,  y: 24,   dir: 'desc', label: 'Token Age (hours)' },
@@ -249,6 +249,11 @@ function loadSettings() {
   try { settings = JSON.parse(localStorage.getItem('solcheck_settings')) || {}; } catch(e) {}
   for (const [k,v] of Object.entries(DEFAULT_SETTINGS)) {
     if (!settings[k]) settings[k] = { g: v.g, y: v.y };
+  }
+  const rc = settings.rugcheck_score;
+  if (rc && ((Number(rc.g) > 100) || (Number(rc.y) > 100))) {
+    settings.rugcheck_score = { g: DEFAULT_SETTINGS.rugcheck_score.g, y: DEFAULT_SETTINGS.rugcheck_score.y };
+    saveSettingsToStorage();
   }
 }
 function saveSettingsToStorage() { localStorage.setItem('solcheck_settings', JSON.stringify(settings)); }
@@ -805,12 +810,12 @@ function renderResults(mint, rc, jup, met) {
   h += '<div class="section"><div class="stitle"><span class="icon">📊</span> Main Scores</div><div class="grid">';
 
   // RugCheck score
-  const rcScoreRaw = rc?.score ?? null;
-  const rcScore = rcScoreRaw != null && rcScoreRaw >= 0 ? rcScoreRaw : null;
+  const rcScoreRaw = rc?.score ?? rc?.score_normalised ?? rc?.score_normalized ?? null;
+  const rcScore = rcScoreRaw != null && rcScoreRaw >= 0 ? Number(rcScoreRaw) : null;
   const rugcheckHint = rc?.result
     || (rc?.__sources?.length ? `Source: ${rc.__sources.join(', ')}` : '')
     || '';
-  h += card('RugCheck Score', rcScore, rcScore != null ? rcScore.toLocaleString() : 'N/A', 'rugcheck_score',
+  h += card('RugCheck Score', rcScore, rcScore != null ? `${Math.round(rcScore)}/100` : 'N/A', 'rugcheck_score',
     rugcheckHint);
 
   // Jupiter Organic Score
