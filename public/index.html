@@ -15,6 +15,13 @@
   --gbd:rgba(34,197,94,.3);--ybd:rgba(234,179,8,.3);--rbd:rgba(239,68,68,.3);
   --t:#e0e0f0;--t2:#6a6a90;--in:#0e0e20;
 }
+[data-theme="light"]{
+  --bg:#f4f8fb;--s1:#ffffff;--s2:#eef5f8;--brd:#d7e4ea;
+  --ac:#2fd66b;--ac2:#35d0b8;
+  --gbg:rgba(34,197,94,.08);--ybg:rgba(234,179,8,.10);--rbg:rgba(239,68,68,.08);
+  --gbd:rgba(34,197,94,.24);--ybd:rgba(234,179,8,.24);--rbd:rgba(239,68,68,.22);
+  --t:#102032;--t2:#5f7287;--in:#f6fafc;
+}
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-serif;min-height:100vh}
 ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:var(--brd);border-radius:4px}
@@ -35,6 +42,16 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-se
 .brand-links{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
 .brand-link,.support-btn,.auth-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 12px;border-radius:999px;border:1px solid var(--brd);background:linear-gradient(180deg,rgba(16,25,43,.98),rgba(9,14,26,.98));color:var(--t);text-decoration:none;font-size:11px;font-weight:700;cursor:pointer}
 .brand-link:hover,.support-btn:hover,.auth-btn:hover{border-color:rgba(151,255,143,.35);color:#ecfff2;box-shadow:0 0 0 1px rgba(151,255,143,.08) inset}
+.theme-toggle{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:999px;border:1px solid var(--brd);background:linear-gradient(180deg,rgba(16,25,43,.98),rgba(9,14,26,.98));color:var(--t);cursor:pointer;font-size:16px}
+.theme-toggle:hover{border-color:rgba(151,255,143,.35);color:#ecfff2;box-shadow:0 0 0 1px rgba(151,255,143,.08) inset}
+.theme-toggle .sun{display:none}
+[data-theme="light"] .theme-toggle .sun{display:block}
+[data-theme="light"] .theme-toggle .moon{display:none}
+[data-theme="light"] .go{color:#ffffff}
+[data-theme="light"] .brand-link,[data-theme="light"] .support-btn,[data-theme="light"] .auth-btn,[data-theme="light"] .theme-toggle{background:linear-gradient(180deg,#ffffff,#f2f8fa)}
+[data-theme="light"] .chart-preview,
+[data-theme="light"] .pool-card{background:linear-gradient(180deg,#f8fcff,#eef7f8)}
+[data-theme="light"] .support-qr{background:#fff;border-color:#d7e4ea}
 .header-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
 .auth-shell{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .auth-status{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border-radius:999px;border:1px solid var(--brd);background:rgba(110,242,200,.08);font-size:11px}
@@ -117,12 +134,13 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-se
 .card.red{background:var(--rbg);border-color:var(--rbd)}.card.red .value{color:var(--r)}
 
 /* Token header */
-.token-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;background:var(--s1);border:1px solid var(--brd);border-radius:12px;padding:14px 18px;margin-bottom:16px}
-.token-hd img{width:40px;height:40px;border-radius:10px}
-.token-main{display:flex;align-items:center;gap:12px}
+.token-hd{display:grid;grid-template-columns:minmax(0,1fr) 300px;align-items:start;gap:16px;background:var(--s1);border:1px solid var(--brd);border-radius:12px;padding:14px 18px;margin-bottom:16px}
+.token-main{min-width:0}
 .token-copy{min-width:0}
-.token-side{display:flex;justify-content:flex-end;min-width:320px}
-.chart-card{width:320px;border:1px solid var(--brd);border-radius:12px;background:linear-gradient(180deg,var(--s2),rgba(17,17,37,.7));padding:10px 12px}
+.token-title-row{display:flex;align-items:flex-start;gap:12px}
+.token-logo{width:42px;height:42px;border-radius:12px;flex:0 0 auto;object-fit:cover;border:1px solid var(--brd);background:var(--s2)}
+.token-side{display:flex;justify-content:flex-end;min-width:0}
+.chart-card{width:300px;max-width:100%;border:1px solid var(--brd);border-radius:12px;background:linear-gradient(180deg,var(--s2),rgba(17,17,37,.7));padding:10px 12px}
 .chart-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .chart-title{font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.08em}
 .chart-price{font-size:14px;font-weight:800;font-family:'JetBrains Mono',monospace}
@@ -260,6 +278,10 @@ tr:hover td{background:rgba(124,92,252,.03)}
   <p>Solana token analysis · RugCheck · Jupiter · Meteora</p>
     </div>
     <div class="header-actions">
+      <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+        <span class="moon">◐</span>
+        <span class="sun">☀</span>
+      </button>
       <div class="auth-shell">
         <div id="authStatus" class="auth-status" style="display:none"></div>
         <div id="googleSignIn" class="google-slot"></div>
@@ -368,6 +390,7 @@ let settings = {};
 let scanHistory = [];
 let currentMint = '';
 let currentChartUrl = '';
+let currentTheme = 'dark';
 let publicConfig = {
   googleClientId: '',
   supportWallet: 'GqXVKZwcQpLHowb2Q7TRdvhw8DBUDVFzTAbVTPfjMxxc',
@@ -376,6 +399,21 @@ let publicConfig = {
 };
 let currentUser = null;
 let googleInitAttempts = 0;
+function applyTheme(theme) {
+  currentTheme = theme === 'light' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', currentTheme);
+  try { localStorage.setItem('solcheck_theme', currentTheme); } catch(e) {}
+}
+function loadTheme() {
+  try {
+    const saved = localStorage.getItem('solcheck_theme');
+    if (saved === 'light' || saved === 'dark') return applyTheme(saved);
+  } catch (e) {}
+  applyTheme('dark');
+}
+function toggleTheme() {
+  applyTheme(currentTheme === 'light' ? 'dark' : 'light');
+}
 function loadSettings() {
   try { settings = JSON.parse(localStorage.getItem('solcheck_settings')) || {}; } catch(e) {}
   for (const [k,v] of Object.entries(DEFAULT_SETTINGS)) {
@@ -1087,23 +1125,25 @@ function renderResults(mint, rc, jup, met) {
   const change5m = num(stats5m?.priceChange);
   h += `<div class="token-hd">
     <div class="token-main">
-      ${logo ? '<img src="'+esc(logo)+'" onerror="this.style.display=\'none\'">' : ''}
       <div class="token-copy">
-        <div class="name">${esc(name)} <span class="sym">${esc(symbol)}</span></div>
-        <div class="addr">${esc(mint)}</div>
+        <div class="token-title-row">
+          ${logo ? '<img class="token-logo" src="'+esc(logo)+'" onerror="this.style.display=\'none\'">' : ''}
+          <div>
+            <div class="name">${esc(name)} <span class="sym">${esc(symbol)}</span></div>
+            <div class="addr">${esc(mint)}</div>
+          </div>
+        </div>
         <div class="token-meta">
           <div class="token-pill"><span class="k">MC</span><span>${esc(marketCap != null ? fm(marketCap) : 'N/A')}</span></div>
           <div class="token-pill"><span class="k">Age</span><span>${esc(ageDisplay(tokenAgeHours))}</span></div>
         </div>
-      </div>
-    </div>
-    <div>
-      <div class="token-links">
-        ${xUrl ? `<a class="token-link" href="${esc(xUrl)}" target="_blank" rel="noopener noreferrer" title="Open X community"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2H21l-6.017 6.876L22 22h-5.828l-4.563-6.617L5.814 22H3.056l6.437-7.357L2 2h5.976l4.125 5.976L18.244 2Zm-1.02 18.244h1.528L7.146 3.676H5.506l11.718 16.568Z"/></svg><span>X</span></a>` : ''}
-        ${websiteUrl ? `<a class="token-link" href="${esc(websiteUrl)}" target="_blank" rel="noopener noreferrer" title="Open website"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10A10.012 10.012 0 0 0 12 2Zm6.93 9h-3.08a15.9 15.9 0 0 0-1.14-5.02A8.03 8.03 0 0 1 18.93 11ZM12 4.04c.83 0 2.43 2.09 2.96 6.96H9.04C9.57 6.13 11.17 4.04 12 4.04ZM9.29 5.98A15.9 15.9 0 0 0 8.15 11H5.07a8.03 8.03 0 0 1 4.22-5.02ZM4.26 13h3.89a15.9 15.9 0 0 0 1.14 5.02A8.03 8.03 0 0 1 4.26 13Zm7.74 6.96c-.83 0-2.43-2.09-2.96-6.96h5.92c-.53 4.87-2.13 6.96-2.96 6.96Zm2.71-1.94A15.9 15.9 0 0 0 15.85 13h3.89a8.03 8.03 0 0 1-5.03 5.02Z"/></svg><span>Site</span></a>` : ''}
-        ${telegramUrl ? `<a class="token-link" href="${esc(telegramUrl)}" target="_blank" rel="noopener noreferrer" title="Open Telegram community"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.78 18.65 9.95 14l8.47-7.64c.37-.33-.08-.5-.57-.17L7.39 12.8 2.88 11.39c-.98-.3-.99-.98.2-1.45L20.7 3.15c.82-.3 1.54.2 1.27 1.45l-3 14.15c-.2 1-.78 1.24-1.6.77l-4.44-3.28-2.14 2.06c-.24.24-.44.44-1.01.35Z"/></svg><span>Telegram</span></a>` : ''}
-        <a class="token-link" href="${gmgnUrl}" target="_blank" rel="noopener noreferrer"><span>GMGN</span></a>
-        <a class="token-link" href="${bubbleMapsUrl}" target="_blank" rel="noopener noreferrer"><span>Bubblemaps</span></a>
+        <div class="token-links">
+          ${xUrl ? `<a class="token-link" href="${esc(xUrl)}" target="_blank" rel="noopener noreferrer" title="Open X community"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2H21l-6.017 6.876L22 22h-5.828l-4.563-6.617L5.814 22H3.056l6.437-7.357L2 2h5.976l4.125 5.976L18.244 2Zm-1.02 18.244h1.528L7.146 3.676H5.506l11.718 16.568Z"/></svg><span>X</span></a>` : ''}
+          ${websiteUrl ? `<a class="token-link" href="${esc(websiteUrl)}" target="_blank" rel="noopener noreferrer" title="Open website"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10A10.012 10.012 0 0 0 12 2Zm6.93 9h-3.08a15.9 15.9 0 0 0-1.14-5.02A8.03 8.03 0 0 1 18.93 11ZM12 4.04c.83 0 2.43 2.09 2.96 6.96H9.04C9.57 6.13 11.17 4.04 12 4.04ZM9.29 5.98A15.9 15.9 0 0 0 8.15 11H5.07a8.03 8.03 0 0 1 4.22-5.02ZM4.26 13h3.89a15.9 15.9 0 0 0 1.14 5.02A8.03 8.03 0 0 1 4.26 13Zm7.74 6.96c-.83 0-2.43-2.09-2.96-6.96h5.92c-.53 4.87-2.13 6.96-2.96 6.96Zm2.71-1.94A15.9 15.9 0 0 0 15.85 13h3.89a8.03 8.03 0 0 1-5.03 5.02Z"/></svg><span>Site</span></a>` : ''}
+          ${telegramUrl ? `<a class="token-link" href="${esc(telegramUrl)}" target="_blank" rel="noopener noreferrer" title="Open Telegram community"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.78 18.65 9.95 14l8.47-7.64c.37-.33-.08-.5-.57-.17L7.39 12.8 2.88 11.39c-.98-.3-.99-.98.2-1.45L20.7 3.15c.82-.3 1.54.2 1.27 1.45l-3 14.15c-.2 1-.78 1.24-1.6.77l-4.44-3.28-2.14 2.06c-.24.24-.44.44-1.01.35Z"/></svg><span>Telegram</span></a>` : ''}
+          <a class="token-link" href="${gmgnUrl}" target="_blank" rel="noopener noreferrer"><span>GMGN</span></a>
+          <a class="token-link" href="${bubbleMapsUrl}" target="_blank" rel="noopener noreferrer"><span>Bubblemaps</span></a>
+        </div>
       </div>
     </div>
     <div class="token-side">
@@ -1236,6 +1276,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeSupportModal();
 });
 renderHistory();
+loadTheme();
 loadStoredUser();
 renderAuthState();
 loadPublicConfig();
