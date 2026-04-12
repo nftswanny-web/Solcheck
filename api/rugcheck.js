@@ -18,6 +18,29 @@ async function fetchJson(url) {
   return { response, data };
 }
 
+/**
+ * Normalise RugCheck raw score to 0-100.
+ *
+ * The raw "score" from the API is a cumulative sum of risk points:
+ *   - 0        = no risks found  → 0 /100
+ *   - ~300     = minor issues    → ~15/100
+ *   - ~2000    = moderate        → ~50/100
+ *   - ~5000    = high risk       → ~75/100
+ *   - 10000+   = extreme risk    → 90-100/100
+ *
+ * We use a logarithmic curve so low scores spread out nicely
+ * and very high scores converge toward 100.
+ */
+function normaliseScore(raw) {
+  if (raw == null || raw < 0) return null;
+  if (raw === 0) return 0;
+  // log curve: score100 = 100 * log10(1 + raw) / log10(1 + 20000)
+  // 20000 chosen as practical max (TRUMP token = 18715)
+  const max = 20000;
+  const score100 = 100 * Math.log10(1 + raw) / Math.log10(1 + max);
+  return Math.round(Math.min(score100, 100) * 10) / 10; // 1 decimal
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -85,33 +108,31 @@ module.exports = async (req, res) => {
         merged.mintAuthority = merged.token.mintAuthority;
       }
 
-      // ── SCORE FIX ──────────────────────────────────────────────
-      // RugCheck API returns TWO score fields:
-      //   score          → raw cumulative risk points (0 … 20000+)
-      //   score_normalised → 0-100 scale (what rugcheck.xyz shows)
+      // ── SCORE NORMALISATION ────────────────────────────────────
       //
-      // We keep BOTH so the frontend can use either,
-      // but "score" always holds the normalised 0-100 value
-      // because that is what the UI displays as X/100.
+      // API fields:
+      //   score             → raw cumulative risk points (0 … 20000+)
+      //   score_normalised  → 0-100 (may or may not exist)
+      //
+      // Strategy:
+      //   1. If score_normalised exists → use it directly
+      //   2. Otherwise               → compute from raw via log curve
+      //
+      // The frontend reads "score" and shows it as X / 100.
 
       const rawScore = report?.score ?? summary?.score ?? null;
       const normScore = report?.score_normalised ?? summary?.score_normalised ?? null;
 
-      // Save the original raw score under a separate key
       merged.score_raw = rawScore;
 
-      // "score" = the normalised value the frontend shows as X/100
       if (normScore != null) {
         merged.score = normScore;
-      } else if (rawScore != null) {
-        // Fallback: if only raw score exists, cap it at 100
-        merged.score = Math.min(rawScore, 100);
       } else {
-        merged.score = null;
+        merged.score = normaliseScore(rawScore);
       }
 
-      merged.score_normalised = normScore;
-      // ── END SCORE FIX ──────────────────────────────────────────
+      merged.score_normalised = merged.score;
+      // ── END SCORE NORMALISATION ────────────────────────────────
 
       merged.__sources = settled.filter((item) => item.ok).map((item) => item.label);
 
