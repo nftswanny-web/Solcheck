@@ -420,7 +420,6 @@ function initGoogleAuth() {
     text: 'signin_with',
     logo_alignment: 'left',
   });
-  window.google.accounts.id.prompt();
 }
 function signOutGoogle() {
   if (window.google?.accounts?.id) window.google.accounts.id.disableAutoSelect();
