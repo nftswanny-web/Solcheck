@@ -16,11 +16,11 @@
   --t:#e0e0f0;--t2:#6a6a90;--in:#0e0e20;
 }
 [data-theme="light"]{
-  --bg:#f4f8fb;--s1:#ffffff;--s2:#eef5f8;--brd:#d7e4ea;
+  --bg:#eef6f7;--s1:#ffffff;--s2:#f5fbfb;--brd:#d4e6e7;
   --ac:#2fd66b;--ac2:#35d0b8;
   --gbg:rgba(34,197,94,.08);--ybg:rgba(234,179,8,.10);--rbg:rgba(239,68,68,.08);
   --gbd:rgba(34,197,94,.24);--ybd:rgba(234,179,8,.24);--rbd:rgba(239,68,68,.22);
-  --t:#102032;--t2:#5f7287;--in:#f6fafc;
+  --t:#0e2233;--t2:#587181;--in:#fbfefe;
 }
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-serif;min-height:100vh}
@@ -47,10 +47,33 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-se
 .theme-toggle .sun{display:none}
 [data-theme="light"] .theme-toggle .sun{display:block}
 [data-theme="light"] .theme-toggle .moon{display:none}
-[data-theme="light"] .go{color:#ffffff}
+[data-theme="light"] .go{color:#072114}
 [data-theme="light"] .brand-link,[data-theme="light"] .support-btn,[data-theme="light"] .auth-btn,[data-theme="light"] .theme-toggle{background:linear-gradient(180deg,#ffffff,#f2f8fa)}
-[data-theme="light"] .chart-preview,
-[data-theme="light"] .pool-card{background:linear-gradient(180deg,#f8fcff,#eef7f8)}
+[data-theme="light"] .card{background:#ffffff}
+[data-theme="light"] .chart-card{background:linear-gradient(180deg,#ffffff,#f4fbfb)}
+[data-theme="light"] .chart-preview{background:linear-gradient(180deg,#f9fefd,#f0faf8);border-color:rgba(53,208,184,.18)}
+[data-theme="light"] .pool-card{background:linear-gradient(180deg,#ffffff,#f3fbfa);border-color:rgba(53,208,184,.18)}
+[data-theme="light"] .pool-metric,
+[data-theme="light"] .focus-chip,
+[data-theme="light"] .history-item,
+[data-theme="light"] .support-wallet{background:#f8fcfc;border-color:#d8eaeb}
+[data-theme="light"] .token-pill{background:#f4fbf7;border-color:#d8eaeb;color:#0e2233}
+[data-theme="light"] .token-link,
+[data-theme="light"] .pool-link,
+[data-theme="light"] .chart-link,
+[data-theme="light"] .history-open,
+[data-theme="light"] .history-btn{background:#ffffff;color:#113247}
+[data-theme="light"] .token-link:hover,
+[data-theme="light"] .pool-link:hover,
+[data-theme="light"] .chart-link:hover,
+[data-theme="light"] .history-open:hover,
+[data-theme="light"] .history-btn:hover{background:#f2fbf7;color:#0b281a}
+[data-theme="light"] .pool-metric .v,
+[data-theme="light"] .focus-chip .v,
+[data-theme="light"] .chart-price,
+[data-theme="light"] .card .value{color:#10273a}
+[data-theme="light"] .brand h1{background:linear-gradient(135deg,#12384c,#1da06a,#22b8a4);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+[data-theme="light"] .auth-status{background:#f4fbf7;border-color:#d8eaeb}
 [data-theme="light"] .support-qr{background:#fff;border-color:#d7e4ea}
 .header-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
 .auth-shell{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
