@@ -26,6 +26,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-se
 .hd-inner > p{display:none}
 .brand h1{font-size:24px;font-weight:800;background:linear-gradient(135deg,var(--ac),var(--ac2),#e879f9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-.02em}
 .brand p{font-size:10px;color:var(--t2);margin-top:3px}
+.brand > .brand-links + p{display:none}
 .brand-links{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
 .brand-link,.support-btn,.auth-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 12px;border-radius:999px;border:1px solid var(--brd);background:var(--s2);color:var(--t);text-decoration:none;font-size:11px;font-weight:700;cursor:pointer}
 .brand-link:hover,.support-btn:hover,.auth-btn:hover{border-color:var(--ac);color:var(--t)}
@@ -165,11 +166,15 @@ tr:hover td{background:rgba(124,92,252,.03)}
 .panel h2{font-size:16px;font-weight:800;margin-bottom:14px}
 .panel .close{float:right;background:none;border:none;color:var(--t2);font-size:20px;cursor:pointer}
 .support-panel{max-width:420px}
-.support-wallet{margin-top:14px;padding:12px;border-radius:12px;border:1px solid var(--brd);background:var(--in)}
-.support-wallet .label{font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
-.support-wallet .addr{font:12px 'JetBrains Mono',monospace;color:var(--t);word-break:break-all;line-height:1.5}
-.support-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-.support-note{font-size:10px;color:var(--t2);line-height:1.6;margin-top:10px}
+.support-panel{text-align:center}
+.support-qr-wrap{display:flex;justify-content:center;margin-top:12px}
+.support-qr{width:232px;height:232px;border-radius:18px;border:1px solid var(--brd);background:#fff;padding:10px;object-fit:contain}
+.support-wallet{margin-top:16px;padding:16px;border-radius:14px;border:1px solid var(--brd);background:rgba(14,14,32,.92)}
+.support-wallet .label{font-size:12px;color:#fff;font-weight:800;margin-bottom:10px}
+.support-wallet .addr{font:14px 'JetBrains Mono',monospace;color:var(--t);word-break:break-all;line-height:1.55}
+.support-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.support-actions .save-btn,.support-actions .brand-link{flex:1;justify-content:center}
+.support-note{font-size:10px;color:var(--t2);line-height:1.6;margin-top:12px}
 .chart-modal{background:rgba(6,6,16,.98);border:1px solid var(--brd);border-radius:16px;padding:16px;max-width:1120px;width:100%;max-height:90vh;overflow:hidden}
 .chart-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
 .chart-modal-title{font-size:14px;font-weight:800}
@@ -206,7 +211,7 @@ tr:hover td{background:rgba(124,92,252,.03)}
   <div class="hd-inner">
     <div class="brand">
       <h1>DLMM CHECKER by SwannyDeFi</h1>
-      <p>Solana token analysis · RugCheck · Jupiter · Meteora</p>
+      <p>Solana token screening before LP</p>
       <div class="brand-links">
         <a class="brand-link" href="https://x.com/SwannyDeFi" target="_blank" rel="noopener noreferrer">X @SwannyDeFi</a>
         <button class="support-btn" onclick="openSupportModal()">Buy Me a Coffee</button>
@@ -272,17 +277,17 @@ tr:hover td{background:rgba(124,92,252,.03)}
   <div class="panel support-panel">
     <button class="close" onclick="closeSupportModal()">x</button>
     <h2>Support DLMM CHECKER</h2>
-    <p class="note">If the tool helps you, you can send support directly on Solana.</p>
+    <div class="support-qr-wrap">
+      <img class="support-qr" id="supportQrImage" alt="Solana donation QR code">
+    </div>
     <div class="support-wallet">
-      <div class="label">Solana Wallet</div>
+      <div class="label">Il tuo indirizzo Solana</div>
       <div class="addr" id="supportWalletValue">GqXVKZwcQpLHowb2Q7TRdvhw8DBUDVFzTAbVTPfjMxxc</div>
     </div>
     <div class="support-actions">
-      <button class="save-btn" onclick="copySupportWallet()">Copy Wallet</button>
-      <a class="brand-link" id="supportXLink" href="https://x.com/SwannyDeFi" target="_blank" rel="noopener noreferrer">Open X</a>
-      <a class="brand-link" id="supportSolanaLink" href="solana:GqXVKZwcQpLHowb2Q7TRdvhw8DBUDVFzTAbVTPfjMxxc">Open Wallet App</a>
+      <button class="save-btn" onclick="copySupportWallet()">Copia</button>
     </div>
-    <div class="support-note">Wallet owner: <strong>SwannyDeFi</strong></div>
+    <div class="support-note">Wallet owner: <strong>SwannyDeFi</strong> · [Solana]</div>
   </div>
 </div>
 
@@ -416,10 +421,11 @@ async function loadPublicConfig() {
   document.title = publicConfig.brand || 'DLMM CHECKER by SwannyDeFi';
   const walletNode = $('supportWalletValue');
   if (walletNode) walletNode.textContent = publicConfig.supportWallet;
-  const xNode = $('supportXLink');
-  if (xNode) xNode.href = publicConfig.xUrl;
-  const solNode = $('supportSolanaLink');
-  if (solNode) solNode.href = 'solana:' + publicConfig.supportWallet;
+  const qrNode = $('supportQrImage');
+  if (qrNode) {
+    const solanaUri = 'solana:' + publicConfig.supportWallet;
+    qrNode.src = 'https://api.qrserver.com/v1/create-qr-code/?size=420x420&margin=12&data=' + encodeURIComponent(solanaUri);
+  }
   const footer = document.querySelector('.ft');
   if (footer) footer.textContent = `${publicConfig.brand} — Data from RugCheck, Jupiter, Meteora — Not financial advice. DYOR.`;
   initGoogleAuth();
