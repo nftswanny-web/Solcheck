@@ -425,7 +425,10 @@ async function fetchRugCheck(mint) {
     if (!d) throw new Error('Empty RugCheck response');
     setStep('RugCheck', 'done');
     return d;
-  } catch(e) { setStep('RugCheck', 'fail'); return null; }
+  } catch(e) {
+    setStep('RugCheck', 'fail');
+    return { __error: e.message || 'Unknown RugCheck error', risks: [] };
+  }
 }
 
 // 2. JUPITER
@@ -817,7 +820,9 @@ function renderResults(mint, rc, jup, met) {
 
   h += '</div></div>';
 
-  if (rc && !rc?.tokenMeta && !(rc?.risks?.length) && rcScore == null) {
+  if (rc?.__error) {
+    h += `<div class="section"><div class="card red"><div class="label">RugCheck Status</div><div class="value" style="font-size:13px;color:inherit">${esc(rc.__error)}</div></div></div>`;
+  } else if (rc && !rc?.tokenMeta && !(rc?.risks?.length) && rcScore == null) {
     h += '<div class="section"><div class="card"><div class="label">RugCheck Status</div><div class="value" style="font-size:13px;color:var(--t)">RugCheck responded, but it did not return a detailed report for this mint.</div></div></div>';
   }
 
