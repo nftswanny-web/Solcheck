@@ -85,9 +85,33 @@ module.exports = async (req, res) => {
         merged.mintAuthority = merged.token.mintAuthority;
       }
 
-      if (merged.score == null && merged.score_normalised != null) {
-        merged.score = merged.score_normalised;
+      // ── SCORE FIX ──────────────────────────────────────────────
+      // RugCheck API returns TWO score fields:
+      //   score          → raw cumulative risk points (0 … 20000+)
+      //   score_normalised → 0-100 scale (what rugcheck.xyz shows)
+      //
+      // We keep BOTH so the frontend can use either,
+      // but "score" always holds the normalised 0-100 value
+      // because that is what the UI displays as X/100.
+
+      const rawScore = report?.score ?? summary?.score ?? null;
+      const normScore = report?.score_normalised ?? summary?.score_normalised ?? null;
+
+      // Save the original raw score under a separate key
+      merged.score_raw = rawScore;
+
+      // "score" = the normalised value the frontend shows as X/100
+      if (normScore != null) {
+        merged.score = normScore;
+      } else if (rawScore != null) {
+        // Fallback: if only raw score exists, cap it at 100
+        merged.score = Math.min(rawScore, 100);
+      } else {
+        merged.score = null;
       }
+
+      merged.score_normalised = normScore;
+      // ── END SCORE FIX ──────────────────────────────────────────
 
       merged.__sources = settled.filter((item) => item.ok).map((item) => item.label);
 
