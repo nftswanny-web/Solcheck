@@ -62,6 +62,24 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-se
 .history-open{flex:1;padding:7px 8px;border-radius:8px;border:1px solid var(--brd);background:var(--in);color:var(--t);font-size:10px;font-weight:700;cursor:pointer}
 .history-open:hover{border-color:var(--ac)}
 .results{min-width:0}
+.results-shell{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+.results-main{min-width:0}
+.results-rail{position:sticky;top:20px}
+.rail-card{border:1px solid var(--brd);border-radius:12px;background:var(--s1);padding:12px}
+.rail-stack{display:flex;flex-direction:column;gap:10px}
+.pool-card{border:1px solid rgba(124,92,252,.18);border-radius:12px;background:
+  radial-gradient(circle at top right, rgba(124,92,252,.12), transparent 40%),
+  linear-gradient(180deg, rgba(17,17,37,.94), rgba(10,10,22,.98));padding:12px}
+.pool-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px}
+.pool-name{font-size:12px;font-weight:800;color:var(--t)}
+.pool-address{font-size:9px;color:var(--t2);font-family:'JetBrains Mono',monospace;word-break:break-all;line-height:1.4}
+.pool-link{display:inline-flex;align-items:center;justify-content:center;padding:7px 10px;border-radius:8px;border:1px solid var(--brd);background:rgba(124,92,252,.10);color:var(--t);font-size:10px;font-weight:700;text-decoration:none;white-space:nowrap}
+.pool-link:hover{border-color:var(--ac);background:rgba(124,92,252,.16)}
+.pool-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.pool-metric{border:1px solid var(--brd);border-radius:10px;background:rgba(6,6,16,.42);padding:8px}
+.pool-metric .k{font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+.pool-metric .v{font-size:12px;font-weight:800;font-family:'JetBrains Mono',monospace;color:var(--t)}
+.pool-metric .sub{font-size:9px;color:var(--t2);margin-top:2px}
 .section{margin-bottom:16px}
 .stitle{font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;display:flex;align-items:center;gap:6px}
 .stitle .icon{font-size:14px}
@@ -151,6 +169,8 @@ tr:hover td{background:rgba(124,92,252,.03)}
 @media (max-width: 820px){
   .app-shell{grid-template-columns:1fr}
   .history{position:static}
+  .results-shell{grid-template-columns:1fr}
+  .results-rail{position:static}
   .token-hd{flex-direction:column}
   .token-side{width:100%;min-width:0}
   .chart-card{width:100%}
@@ -179,9 +199,6 @@ tr:hover td{background:rgba(124,92,252,.03)}
 
 <div class="app-shell">
   <aside class="history">
-    <div class="sidebar-block" id="sidebarMeteora">
-      <div class="history-item"><div class="history-meta">Meteora pools will appear here after a scan.</div></div>
-    </div>
     <div class="history-head">
       <div class="history-title">Recent Scans</div>
       <div class="history-actions">
@@ -289,30 +306,7 @@ function renderHistory() {
   `).join('');
 }
 function renderSidebarMeteora(met) {
-  const el = $('sidebarMeteora');
-  if (!el) return;
-  let h = '<div class="history-head"><div class="history-title">Meteora Pools</div></div>';
-  if (!Array.isArray(met) || !met.length) {
-    h += '<div class="history-item"><div class="history-meta">No Meteora DLMM pools found for this token.</div></div>';
-    el.innerHTML = h;
-    return;
-  }
-  const pools = [...met].sort((a, b) => (num(b?.liquidity, b?.tvl) || 0) - (num(a?.liquidity, a?.tvl) || 0)).slice(0, 4);
-  h += pools.map((p) => {
-    const pairName = p.name || ((p.token_x?.symbol || p.mint_x_symbol || '?') + '/' + (p.token_y?.symbol || p.mint_y_symbol || '?'));
-    const poolAddress = p.address || p.pair_address || '';
-    const tvl = num(p.liquidity, p.tvl);
-    const vol = num(p.trade_volume_24h, p.volume?.['24h'], p.volume_24h);
-    return `<div class="history-item">
-      <div class="history-token">${esc(pairName)}</div>
-      <div class="history-meta">${esc(sh(poolAddress))}</div>
-      <div class="history-meta">TVL ${esc(tvl != null ? fm(tvl) : 'N/A')} · Vol ${esc(vol != null ? fm(vol) : 'N/A')}</div>
-      <div class="history-row">
-        <a class="history-open" href="https://app.meteora.ag/dlmm/${esc(poolAddress)}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;text-align:center">Open</a>
-      </div>
-    </div>`;
-  }).join('');
-  el.innerHTML = h;
+  return;
 }
 function openHistoryToken(mint) {
   $('ca').value = mint;
@@ -602,6 +596,16 @@ function fmtVol(n) {
   if (n == null || isNaN(n)) return 'N/A';
   return fm(n);
 }
+function fmtPlain(n, d=2) {
+  if (n == null || isNaN(n)) return 'N/A';
+  return Number(n).toFixed(d);
+}
+function fmtPercentMaybe(value, digits=2) {
+  if (value == null || isNaN(value)) return 'N/A';
+  const numeric = Number(value);
+  const pctValue = Math.abs(numeric) <= 1 ? numeric * 100 : numeric;
+  return pctValue.toFixed(digits) + '%';
+}
 function normalizeUrl(url, base='https://') {
   if (!url) return '';
   const value = String(url).trim();
@@ -633,8 +637,78 @@ function card(label, value, displayValue, key, sub) {
   </div>`;
 }
 
+function renderMeteoraRail(met) {
+  const pools = Array.isArray(met)
+    ? [...met].sort((a, b) => (num(b?.liquidity, b?.tvl) || 0) - (num(a?.liquidity, a?.tvl) || 0)).slice(0, 4)
+    : [];
+
+  let h = '<div class="rail-card"><div class="history-head"><div class="history-title">Meteora Pools</div></div><div class="rail-stack">';
+
+  if (!pools.length) {
+    h += '<div class="history-item"><div class="history-meta">No Meteora DLMM pools found for this token.</div></div>';
+    h += '</div></div>';
+    return h;
+  }
+
+  h += pools.map((p) => {
+    const pairName = p.name || ((p.token_x?.symbol || p.mint_x_symbol || '?') + '/' + (p.token_y?.symbol || p.mint_y_symbol || '?'));
+    const poolAddress = p.address || p.pair_address || '';
+    const tvl = num(p?.liquidity, p?.tvl);
+    const vol24h = num(p?.trade_volume_24h, p?.volume?.['24h'], p?.volume_24h);
+    const binStep = num(p?.bin_step, p?.binStep, p?.bin_step_bps, p?.binStepBps);
+    const feePct = num(
+      p?.fee_pct,
+      p?.feePercent,
+      p?.fee_percentage,
+      p?.base_fee_percentage,
+      p?.base_fee_pct,
+      p?.total_fee_pct,
+      p?.totalFeePct,
+      p?.trade_fee_pct,
+      p?.tradeFeePct,
+      p?.fee_bps != null ? Number(p.fee_bps) / 100 : null,
+      p?.base_fee_bps != null ? Number(p.base_fee_bps) / 100 : null,
+      p?.baseFeeBps != null ? Number(p.baseFeeBps) / 100 : null
+    );
+    const feesEarned = num(
+      p?.fees_24h,
+      p?.fees24h,
+      p?.fees,
+      p?.total_fees,
+      p?.totalFees,
+      p?.fees_usd,
+      p?.feesUsd,
+      p?.fee_volume_24h,
+      p?.feeVolume24h
+    );
+    const apr = num(p?.apr, p?.fee_apr, p?.feeApr, p?.apy);
+
+    return `<div class="pool-card">
+      <div class="pool-head">
+        <div>
+          <div class="pool-name">${esc(pairName)}</div>
+          <div class="pool-address">${esc(sh(poolAddress))}</div>
+        </div>
+        <a class="pool-link" href="https://app.meteora.ag/dlmm/${esc(poolAddress)}" target="_blank" rel="noopener noreferrer">Open</a>
+      </div>
+      <div class="pool-grid">
+        <div class="pool-metric"><div class="k">TVL</div><div class="v">${esc(tvl != null ? fm(tvl) : 'N/A')}</div></div>
+        <div class="pool-metric"><div class="k">24h Volume</div><div class="v">${esc(vol24h != null ? fm(vol24h) : 'N/A')}</div></div>
+        <div class="pool-metric"><div class="k">Bin Step</div><div class="v">${esc(binStep != null ? fmtPercentMaybe(binStep / 100) : 'N/A')}</div><div class="sub">${esc(binStep != null ? `${fmtPlain(binStep, 0)} bps` : 'Range width')}</div></div>
+        <div class="pool-metric"><div class="k">Fees %</div><div class="v">${esc(fmtPercentMaybe(feePct))}</div><div class="sub">${esc(apr != null ? `APR ${fmtPercentMaybe(apr)}` : 'Pool fee tier')}</div></div>
+        <div class="pool-metric"><div class="k">Fees Earned</div><div class="v">${esc(feesEarned != null ? fm(feesEarned) : 'N/A')}</div><div class="sub">Latest available</div></div>
+        <div class="pool-metric"><div class="k">Pool</div><div class="v">${esc(poolAddress ? sh(poolAddress) : 'N/A')}</div><div class="sub">${esc(p?.pool_type || p?.type || 'DLMM')}</div></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  h += '</div></div>';
+  return h;
+}
+
 function renderResults(mint, rc, jup, met) {
   let h = '';
+  const meteoraRail = renderMeteoraRail(met);
 
   // ── Token header ──
   const name = jup?.name || rc?.tokenMeta?.name || '?';
@@ -900,7 +974,7 @@ function renderResults(mint, rc, jup, met) {
   h += '<div class="section"><div class="stitle"><span class="icon">🫧</span> Holder Bubble Map</div>';
   h += `<div class="card" style="padding:8px"><iframe src="${bubbleMapsUrl}" title="Bubblemaps" style="width:100%;height:560px;border:0;border-radius:10px;background:#050816"></iframe></div></div>`;
 
-  $('results').innerHTML = h;
+  $('results').innerHTML = `<div class="results-shell"><div class="results-main">${h}</div><aside class="results-rail">${meteoraRail}</aside></div>`;
 }
 
 /* ═══════════════════════════════════════════
