@@ -655,13 +655,22 @@ function renderMeteoraRail(met) {
     const poolAddress = p.address || p.pair_address || '';
     const tvl = num(p?.liquidity, p?.tvl);
     const vol24h = num(p?.trade_volume_24h, p?.volume?.['24h'], p?.volume_24h);
-    const binStep = num(p?.bin_step, p?.binStep, p?.bin_step_bps, p?.binStepBps);
+    const binStep = num(
+      p?.bin_step,
+      p?.binStep,
+      p?.bin_step_bps,
+      p?.binStepBps,
+      p?.pool_config?.bin_step
+    );
     const feePct = num(
       p?.fee_pct,
       p?.feePercent,
       p?.fee_percentage,
       p?.base_fee_percentage,
       p?.base_fee_pct,
+      p?.pool_config?.base_fee_pct,
+      p?.pool_config?.max_fee_pct,
+      p?.dynamic_fee_pct,
       p?.total_fee_pct,
       p?.totalFeePct,
       p?.trade_fee_pct,
@@ -674,14 +683,19 @@ function renderMeteoraRail(met) {
       p?.fees_24h,
       p?.fees24h,
       p?.fees,
+      p?.fees?.['24h'],
+      p?.fees?.['12h'],
+      p?.fees?.['1h'],
       p?.total_fees,
       p?.totalFees,
       p?.fees_usd,
       p?.feesUsd,
+      p?.cumulative_metrics?.trade_fee,
+      p?.cumulative_metrics?.protocol_fee,
       p?.fee_volume_24h,
       p?.feeVolume24h
     );
-    const apr = num(p?.apr, p?.fee_apr, p?.feeApr, p?.apy);
+    const apr = num(p?.apr, p?.fee_apr, p?.feeApr, p?.apy, p?.fee_tvl_ratio?.['24h']);
 
     return `<div class="pool-card">
       <div class="pool-head">
@@ -695,8 +709,8 @@ function renderMeteoraRail(met) {
         <div class="pool-metric"><div class="k">TVL</div><div class="v">${esc(tvl != null ? fm(tvl) : 'N/A')}</div></div>
         <div class="pool-metric"><div class="k">24h Volume</div><div class="v">${esc(vol24h != null ? fm(vol24h) : 'N/A')}</div></div>
         <div class="pool-metric"><div class="k">Bin Step</div><div class="v">${esc(binStep != null ? fmtPercentMaybe(binStep / 100) : 'N/A')}</div><div class="sub">${esc(binStep != null ? `${fmtPlain(binStep, 0)} bps` : 'Range width')}</div></div>
-        <div class="pool-metric"><div class="k">Fees %</div><div class="v">${esc(fmtPercentMaybe(feePct))}</div><div class="sub">${esc(apr != null ? `APR ${fmtPercentMaybe(apr)}` : 'Pool fee tier')}</div></div>
-        <div class="pool-metric"><div class="k">Fees Earned</div><div class="v">${esc(feesEarned != null ? fm(feesEarned) : 'N/A')}</div><div class="sub">Latest available</div></div>
+        <div class="pool-metric"><div class="k">Fees %</div><div class="v">${esc(fmtPercentMaybe(feePct))}</div><div class="sub">${esc(apr != null ? `Fee/TVL ${fmtPercentMaybe(apr)}` : 'Pool fee tier')}</div></div>
+        <div class="pool-metric"><div class="k">Fees Earned</div><div class="v">${esc(feesEarned != null ? fm(feesEarned) : 'N/A')}</div><div class="sub">${esc(p?.fees?.['24h'] != null ? '24h fees' : 'Latest available')}</div></div>
         <div class="pool-metric"><div class="k">Pool</div><div class="v">${esc(poolAddress ? sh(poolAddress) : 'N/A')}</div><div class="sub">${esc(p?.pool_type || p?.type || 'DLMM')}</div></div>
       </div>
     </div>`;
