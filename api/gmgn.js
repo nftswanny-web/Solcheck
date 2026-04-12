@@ -1,20 +1,41 @@
 const fetch = require('node-fetch');
+const { applyCors, rateLimit } = require('./_utils');
+
+const ALLOWED_GET_PATHS = [
+  /^\/api\/v1\/token_info\/sol\/[1-9A-HJ-NP-Za-km-z]{32,44}$/i,
+  /^\/defi\/quotation\/v1\/tokens\/sol\/[1-9A-HJ-NP-Za-km-z]{32,44}$/i,
+  /^\/defi\/quotation\/v1\/tokens\/top_traders\/sol\/[1-9A-HJ-NP-Za-km-z]{32,44}\?orderby=profit&direction=desc$/i,
+];
+
+const ALLOWED_POST_PATHS = [
+  /^\/api\/v1\/multi_window_token_info(\?.*)?$/i,
+  /^\/api\/v1\/mutil_window_token_info(\?.*)?$/i,
+];
+
+function isAllowedPath(method, path) {
+  const patterns = method === 'POST' ? ALLOWED_POST_PATHS : ALLOWED_GET_PATHS;
+  return patterns.some((pattern) => pattern.test(path));
+}
 
 module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', '*');
+  applyCors(req, res);
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' });
+  if (rateLimit(req, res, 'gmgn', 60 * 1000, 15)) return;
 
   try {
-    const source = req.method === 'POST' ? (req.body || {}) : req.query;
+    const source = req.query;
     const path = source.path;
     if (!path) return res.status(400).json({ error: 'Missing ?path=' });
+    const method = 'GET';
+    if (!isAllowedPath(method, path)) {
+      return res.status(403).json({ error: 'path_not_allowed', message: 'This GMGN route is not allowed.' });
+    }
 
-    const apiKey = source.apikey || process.env.GMGN_API_KEY || process.env.GMGN_AGENT_API_KEY || '';
-    const routeKey = source.routeKey || process.env.GMGN_ROUTE_KEY || apiKey;
-    const method = (source.method || 'GET').toUpperCase();
-    const body = source.body;
+    const apiKey = process.env.GMGN_API_KEY || process.env.GMGN_AGENT_API_KEY || '';
+    const routeKey = process.env.GMGN_ROUTE_KEY || apiKey;
+    const body = undefined;
     const fullUrl = 'https://gmgn.ai' + path;
 
     const headers = {
