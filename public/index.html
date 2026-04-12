@@ -250,6 +250,9 @@ tr:hover td{background:rgba(124,92,252,.03)}
         <button class="history-btn" onclick="refreshCurrentScan()">Refresh</button>
       </div>
     </div>
+    <div class="history-item" style="margin-bottom:10px">
+      <div class="history-meta">History is stored locally on this device and browser.</div>
+    </div>
     <div class="history-list" id="historyList"></div>
   </aside>
 
@@ -369,16 +372,19 @@ function saveStoredUser(user) {
 function renderAuthState() {
   const status = $('authStatus');
   const signOut = $('signOutBtn');
-  if (!status || !signOut) return;
+  const googleSlot = $('googleSignIn');
+  if (!status || !signOut || !googleSlot) return;
   if (!currentUser) {
     status.style.display = 'none';
     status.innerHTML = '';
     signOut.style.display = 'none';
+    googleSlot.style.display = 'flex';
     return;
   }
   status.style.display = 'inline-flex';
   status.innerHTML = `${currentUser.picture ? `<img class="auth-avatar" src="${esc(currentUser.picture)}" alt="">` : '<div class="auth-avatar"></div>'}<div class="auth-copy"><strong>${esc(currentUser.name || currentUser.email || 'Signed in')}</strong><span>${esc(currentUser.email || 'Google account')}</span></div>`;
   signOut.style.display = 'inline-flex';
+  googleSlot.style.display = 'none';
 }
 function handleGoogleCredentialResponse(response) {
   const payload = decodeJwtPayload(response?.credential || '');
@@ -423,7 +429,10 @@ function initGoogleAuth() {
 }
 function signOutGoogle() {
   if (window.google?.accounts?.id) window.google.accounts.id.disableAutoSelect();
+  const slot = $('googleSignIn');
+  if (slot) slot.style.display = 'flex';
   saveStoredUser(null);
+  initGoogleAuth();
 }
 async function loadPublicConfig() {
   try {
