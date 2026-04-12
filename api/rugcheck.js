@@ -1,154 +1,917 @@
-const fetch = require('node-fetch');
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DLMM CHECKER</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap');
+:root{
+  --bg:#060610;--s1:#0c0c1a;--s2:#111125;--brd:#1a1a38;
+  --ac:#7c5cfc;--ac2:#a78bfa;
+  --g:#22c55e;--y:#eab308;--r:#ef4444;
+  --gbg:rgba(34,197,94,.1);--ybg:rgba(234,179,8,.1);--rbg:rgba(239,68,68,.1);
+  --gbd:rgba(34,197,94,.3);--ybd:rgba(234,179,8,.3);--rbd:rgba(239,68,68,.3);
+  --t:#e0e0f0;--t2:#6a6a90;--in:#0e0e20;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-serif;min-height:100vh}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:var(--brd);border-radius:4px}
 
-const RUGCHECK_KEY = process.env.RUGCHECK_API_KEY || '';
+/* ─── HEADER ─── */
+.hd{background:linear-gradient(180deg,#0d0d1e,var(--bg));border-bottom:1px solid var(--brd);padding:20px 24px;text-align:center}
+.hd h1{font-size:22px;font-weight:800;background:linear-gradient(135deg,var(--ac),var(--ac2),#e879f9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-.02em}
+.hd p{font-size:10px;color:var(--t2);margin-top:2px}
 
-async function fetchJson(url) {
-  const headers = {
-    'Accept': 'application/json',
-    'User-Agent': 'Mozilla/5.0',
-  };
-  if (RUGCHECK_KEY) {
-    headers['Authorization'] = 'Bearer ' + RUGCHECK_KEY;
+/* ─── SEARCH BAR ─── */
+.search{max-width:680px;margin:20px auto;padding:0 20px}
+.search-row{display:flex;gap:8px}
+.search-row input{flex:1;padding:12px 16px;border-radius:10px;border:1px solid var(--brd);background:var(--in);color:var(--t);font:14px 'JetBrains Mono',monospace;outline:none;transition:border-color .2s}
+.search-row input:focus{border-color:var(--ac)}
+.search-row input::placeholder{color:var(--t2)}
+.go{padding:12px 28px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff;font:700 13px 'DM Sans',sans-serif;cursor:pointer;text-transform:uppercase;letter-spacing:.04em;transition:opacity .2s}
+.go:hover{opacity:.9}.go:disabled{opacity:.3;cursor:wait}
+.settings-btn{padding:12px;border-radius:10px;border:1px solid var(--brd);background:var(--in);color:var(--t2);font-size:16px;cursor:pointer;transition:all .15s;line-height:1}
+.settings-btn:hover{border-color:var(--ac);color:var(--t)}
+.api-row{display:flex;gap:8px;margin-top:8px;align-items:center}
+.api-row label{font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.04em}
+.api-row input{flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--brd);background:var(--in);color:var(--t);font:11px 'JetBrains Mono',monospace;outline:none}
+
+/* ─── PROGRESS ─── */
+.progress{max-width:680px;margin:0 auto;padding:10px 20px}
+.pbar{height:3px;background:var(--brd);border-radius:2px;overflow:hidden;margin-bottom:6px}
+.pbar-fill{height:100%;background:linear-gradient(90deg,var(--ac),var(--ac2));transition:width .3s;width:0%}
+.pstatus{font-size:10px;color:var(--t2);display:flex;gap:12px;flex-wrap:wrap}
+.pstatus .done{color:var(--g)}.pstatus .loading{color:var(--y)}.pstatus .fail{color:var(--r)}
+
+/* ─── RESULTS ─── */
+.app-shell{max-width:1180px;margin:20px auto;padding:0 20px;display:grid;grid-template-columns:260px minmax(0,1fr);gap:16px;align-items:start}
+.history{position:sticky;top:20px;border:1px solid var(--brd);border-radius:12px;background:var(--s1);padding:12px}
+.sidebar-block{margin-bottom:14px}
+.history-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.history-title{font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.06em}
+.history-actions{display:flex;gap:6px}
+.history-btn{padding:6px 8px;border-radius:8px;border:1px solid var(--brd);background:var(--s2);color:var(--t2);font-size:10px;font-weight:700;cursor:pointer}
+.history-btn:hover{border-color:var(--ac);color:var(--t)}
+.history-list{display:flex;flex-direction:column;gap:8px}
+.history-item{border:1px solid var(--brd);border-radius:10px;background:rgba(17,17,37,.75);padding:10px}
+.history-item.active{border-color:rgba(124,92,252,.55);box-shadow:0 0 0 1px rgba(124,92,252,.16) inset}
+.history-token{font-size:11px;font-weight:700;color:var(--t);margin-bottom:4px}
+.history-meta{font-size:9px;color:var(--t2);font-family:'JetBrains Mono',monospace;word-break:break-all;line-height:1.45}
+.history-row{display:flex;gap:6px;margin-top:8px}
+.history-open{flex:1;padding:7px 8px;border-radius:8px;border:1px solid var(--brd);background:var(--in);color:var(--t);font-size:10px;font-weight:700;cursor:pointer}
+.history-open:hover{border-color:var(--ac)}
+.results{min-width:0}
+.section{margin-bottom:16px}
+.stitle{font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.stitle .icon{font-size:14px}
+
+/* Score cards grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:8px}
+.card{border-radius:10px;padding:12px 14px;border:1px solid var(--brd);background:var(--s1);transition:all .2s}
+.card .label{font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.card .value{font-size:18px;font-weight:800;font-family:'JetBrains Mono',monospace}
+.card .sub{font-size:9px;color:var(--t2);margin-top:2px}
+.card.green{background:var(--gbg);border-color:var(--gbd)}.card.green .value{color:var(--g)}
+.card.yellow{background:var(--ybg);border-color:var(--ybd)}.card.yellow .value{color:var(--y)}
+.card.red{background:var(--rbg);border-color:var(--rbd)}.card.red .value{color:var(--r)}
+
+/* Token header */
+.token-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;background:var(--s1);border:1px solid var(--brd);border-radius:12px;padding:14px 18px;margin-bottom:16px}
+.token-hd img{width:40px;height:40px;border-radius:10px}
+.token-main{display:flex;align-items:center;gap:12px}
+.token-copy{min-width:0}
+.token-side{display:flex;justify-content:flex-end;min-width:320px}
+.chart-card{width:320px;border:1px solid var(--brd);border-radius:12px;background:linear-gradient(180deg,var(--s2),rgba(17,17,37,.7));padding:10px 12px}
+.chart-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.chart-title{font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.08em}
+.chart-price{font-size:14px;font-weight:800;font-family:'JetBrains Mono',monospace}
+.chart-preview{border:1px solid rgba(124,92,252,.18);border-radius:12px;background:
+  radial-gradient(circle at top right, rgba(124,92,252,.18), transparent 38%),
+  linear-gradient(180deg, rgba(17,17,37,.98), rgba(9,9,20,.98));padding:14px}
+.chart-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.chart-link{flex:1;display:inline-flex;align-items:center;justify-content:center;padding:10px 12px;border-radius:10px;border:1px solid var(--brd);background:rgba(124,92,252,.10);color:var(--t);font-size:11px;font-weight:700;text-decoration:none;cursor:pointer}
+.chart-link:hover{border-color:var(--ac);background:rgba(124,92,252,.16)}
+.embed-card{padding:8px}
+.embed-frame{width:100%;border:0;border-radius:12px;overflow:hidden;background:#090914}
+.focus-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:10px}
+.focus-chip{border:1px solid var(--brd);border-radius:10px;background:rgba(6,6,16,.45);padding:8px}
+.focus-chip .k{font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}
+.focus-chip .v{font-size:13px;font-weight:800;font-family:'JetBrains Mono',monospace}
+.focus-chip .v.green{color:var(--g)}
+.focus-chip .v.red{color:var(--r)}
+.token-hd .name{font-size:18px;font-weight:800}
+.token-hd .sym{font-size:12px;color:var(--ac2);font-weight:600}
+.token-hd .addr{font-size:10px;color:var(--t2);font-family:'JetBrains Mono',monospace;word-break:break-all}
+.token-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.token-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid var(--brd);background:rgba(124,92,252,.08);color:var(--t);font-size:11px;font-weight:700}
+.token-pill .k{color:var(--t2);font-weight:600}
+.token-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.token-link{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid var(--brd);background:var(--s2);color:var(--ac2);text-decoration:none;font-size:11px;font-weight:700}
+.token-link:hover{border-color:var(--ac);color:var(--t)}
+.token-link svg{width:13px;height:13px;fill:currentColor;display:block}
+
+/* KOL list */
+.kol-list{display:flex;flex-wrap:wrap;gap:6px}
+.kol{display:inline-flex;align-items:center;gap:5px;background:var(--s2);border:1px solid var(--brd);border-radius:7px;padding:5px 10px;font-size:11px;font-weight:600;transition:border-color .15s}
+.kol:hover{border-color:var(--ac)}
+.kol a{color:var(--ac2);text-decoration:none}.kol a:hover{text-decoration:underline}
+.kol .tag{font-size:8px;padding:1px 5px;border-radius:3px;background:rgba(255,109,0,.2);color:#ff6d00;font-weight:700;text-transform:uppercase}
+
+/* Meteora table */
+.tw{overflow-x:auto;margin-top:6px}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{text-align:left;padding:7px 8px;color:var(--t2);font-weight:600;font-size:9px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--brd);white-space:nowrap}
+td{padding:8px;border-bottom:1px solid rgba(26,26,56,.4);vertical-align:middle;font-family:'JetBrains Mono',monospace;font-size:10px}
+tr:hover td{background:rgba(124,92,252,.03)}
+
+/* Settings panel */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center;padding:20px}
+.overlay.open{display:flex}
+.panel{background:var(--s1);border:1px solid var(--brd);border-radius:14px;padding:22px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto}
+.panel h2{font-size:16px;font-weight:800;margin-bottom:14px}
+.panel .close{float:right;background:none;border:none;color:var(--t2);font-size:20px;cursor:pointer}
+.chart-modal{background:rgba(6,6,16,.98);border:1px solid var(--brd);border-radius:16px;padding:16px;max-width:1120px;width:100%;max-height:90vh;overflow:hidden}
+.chart-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.chart-modal-title{font-size:14px;font-weight:800}
+.chart-modal-frame{width:100%;height:min(74vh,780px);border:1px solid rgba(124,92,252,.18);border-radius:12px;overflow:hidden;background:#090914}
+.chart-modal-frame iframe{width:100%;height:100%;border:0}
+.setting-row{display:grid;grid-template-columns:1fr 70px 70px 70px;gap:6px;align-items:center;margin-bottom:8px;font-size:11px}
+.setting-row .slbl{font-weight:600;font-size:11px}
+.setting-row input{padding:5px 7px;border-radius:5px;border:1px solid var(--brd);background:var(--in);color:var(--t);font:11px 'JetBrains Mono',monospace;outline:none;width:100%;text-align:center}
+.shead{display:grid;grid-template-columns:1fr 70px 70px 70px;gap:6px;font-size:8px;color:var(--t2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;text-align:center}
+.shead span:first-child{text-align:left}
+.save-btn{margin-top:14px;padding:8px 24px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--ac),var(--ac2));color:#fff;font:700 12px 'DM Sans',sans-serif;cursor:pointer}
+.note{font-size:9px;color:var(--t2);margin-top:8px;line-height:1.5}
+
+.err{background:var(--rbg);border:1px solid var(--rbd);border-radius:8px;padding:10px 14px;color:var(--r);font-size:12px;margin-bottom:10px}
+.empty{text-align:center;padding:60px 20px;color:var(--t2)}
+.empty big{font-size:44px;display:block;margin-bottom:8px;opacity:.2}
+.ft{padding:14px;border-top:1px solid var(--brd);text-align:center;color:var(--t2);font-size:8px;margin-top:30px}
+@media (max-width: 820px){
+  .app-shell{grid-template-columns:1fr}
+  .history{position:static}
+  .token-hd{flex-direction:column}
+  .token-side{width:100%;min-width:0}
+  .chart-card{width:100%}
+}
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <h1>DLMM CHECKER</h1>
+  <p>Solana token analysis · RugCheck · Jupiter · Meteora</p>
+</div>
+
+<div class="search">
+  <div class="search-row">
+    <input type="text" id="ca" placeholder="Enter Solana token contract address..." spellcheck="false">
+    <button class="settings-btn" onclick="openSettings()" title="Settings">⚙️</button>
+    <button class="go" id="goBtn" onclick="analyze()">Analyze</button>
+  </div>
+</div>
+
+<div class="progress" id="progressBox" style="display:none">
+  <div class="pbar"><div class="pbar-fill" id="pbarFill"></div></div>
+  <div class="pstatus" id="pstatus"></div>
+</div>
+
+<div class="app-shell">
+  <aside class="history">
+    <div class="sidebar-block" id="sidebarMeteora">
+      <div class="history-item"><div class="history-meta">Meteora pools will appear here after a scan.</div></div>
+    </div>
+    <div class="history-head">
+      <div class="history-title">Recent Scans</div>
+      <div class="history-actions">
+        <button class="history-btn" onclick="refreshCurrentScan()">Refresh</button>
+      </div>
+    </div>
+    <div class="history-list" id="historyList"></div>
+  </aside>
+
+  <div class="results" id="results">
+    <div class="empty">
+      <big>🔍</big>
+      <p style="font-size:14px;font-weight:600">Enter a CA and click Analyze</p>
+      <p style="font-size:11px;margin-top:6px">We collect data from multiple sources and show quick green / yellow / red signals</p>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="chartOverlay">
+  <div class="chart-modal">
+    <div class="chart-modal-head">
+      <div class="chart-modal-title" id="chartModalTitle">Token Chart</div>
+      <button class="close" onclick="closeChartOverlay()">✕</button>
+    </div>
+    <div class="chart-modal-frame" id="chartModalFrame"></div>
+  </div>
+</div>
+
+<div class="ft">DLMM CHECKER v1.0 — Data from RugCheck, Jupiter, Meteora — Not financial advice. DYOR.</div>
+
+<!-- SETTINGS OVERLAY -->
+<div class="overlay" id="settingsOverlay">
+<div class="panel">
+  <button class="close" onclick="closeSettings()">✕</button>
+  <h2>⚙️ Threshold Settings</h2>
+  <p class="note" style="margin-bottom:12px">Set the ranges for the 3 colors. Values ≤ Green = 🟢, between Green and Yellow = 🟡, &gt; Yellow = 🔴.<br>For inverse metrics where higher is better, colors are reversed automatically.</p>
+  <div class="shead"><span>Metric</span><span>🟢 max</span><span>🟡 max</span><span>🔴 from</span></div>
+  <div id="settingsRows"></div>
+  <button class="save-btn" onclick="saveSettings()">💾 Save</button>
+  <button class="save-btn" style="background:var(--in);border:1px solid var(--brd);margin-left:8px" onclick="resetSettings()">🔄 Reset</button>
+</div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════
+   CONFIG & DEFAULTS
+   ═══════════════════════════════════════════ */
+const DEFAULT_SETTINGS = {
+  // name: [greenMax, yellowMax, direction]  direction: 'asc'=lower is better, 'desc'=higher is better
+  rugcheck_score:     { g: 80,   y: 50,   dir: 'desc', label: 'RugCheck Score (/100)' },
+  organic_score:      { g: 80,   y: 50,   dir: 'desc', label: 'Jupiter Organic Score' },
+  market_cap:         { g: 500000, y: 100000, dir: 'desc', label: 'Market Cap (USD)' },
+  token_age_hours:    { g: 168,  y: 24,   dir: 'desc', label: 'Token Age (hours)' },
+  top_holders_pct:    { g: 15,   y: 30,   dir: 'asc', label: 'Top Holders %' },
+  bundlers_pct:       { g: 5,    y: 15,   dir: 'asc', label: 'Developer Holdings %' },
+  phishing_pct:       { g: 2,    y: 5,    dir: 'asc', label: 'Snipers %' },
+  total_fees_sol:     { g: 100,  y: 20,   dir: 'desc', label: 'Fees Paid (SOL)' },
+};
+
+let settings = {};
+let scanHistory = [];
+let currentMint = '';
+let currentChartUrl = '';
+function loadSettings() {
+  try { settings = JSON.parse(localStorage.getItem('solcheck_settings')) || {}; } catch(e) {}
+  for (const [k,v] of Object.entries(DEFAULT_SETTINGS)) {
+    if (!settings[k]) settings[k] = { g: v.g, y: v.y };
   }
-  const response = await fetch(url, {
-    headers,
-    timeout: 20000,
-  });
-  const data = await response.json().catch(() => null);
-  return { response, data };
+  const rc = settings.rugcheck_score;
+  if (rc && ((Number(rc.g) > 100) || (Number(rc.y) > 100))) {
+    settings.rugcheck_score = { g: DEFAULT_SETTINGS.rugcheck_score.g, y: DEFAULT_SETTINGS.rugcheck_score.y };
+    saveSettingsToStorage();
+  }
+}
+function saveSettingsToStorage() { localStorage.setItem('solcheck_settings', JSON.stringify(settings)); }
+loadSettings();
+
+function loadHistory() {
+  try { scanHistory = JSON.parse(localStorage.getItem('solcheck_history')) || []; } catch(e) { scanHistory = []; }
+}
+function saveHistory() {
+  localStorage.setItem('solcheck_history', JSON.stringify(scanHistory.slice(0, 12)));
+}
+function pushHistory(entry) {
+  scanHistory = [entry, ...scanHistory.filter((item) => item.mint !== entry.mint)].slice(0, 12);
+  saveHistory();
+  renderHistory();
+}
+function renderHistory() {
+  const el = $('historyList');
+  if (!el) return;
+  if (!scanHistory.length) {
+    el.innerHTML = '<div class="history-item"><div class="history-meta">Your latest scans will appear here.</div></div>';
+    return;
+  }
+  el.innerHTML = scanHistory.map((item) => `
+    <div class="history-item ${item.mint === currentMint ? 'active' : ''}">
+      <div class="history-token">${esc(item.name || item.symbol || 'Unknown Token')}</div>
+      <div class="history-meta">${esc(item.symbol || 'N/A')} · ${esc(item.mint)}</div>
+      <div class="history-meta">${esc(item.updatedAt || '')}</div>
+      <div class="history-row">
+        <button class="history-open" onclick="openHistoryToken('${esc(item.mint)}')">Open</button>
+      </div>
+    </div>
+  `).join('');
+}
+function renderSidebarMeteora(met) {
+  const el = $('sidebarMeteora');
+  if (!el) return;
+  let h = '<div class="history-head"><div class="history-title">Meteora Pools</div></div>';
+  if (!Array.isArray(met) || !met.length) {
+    h += '<div class="history-item"><div class="history-meta">No Meteora DLMM pools found for this token.</div></div>';
+    el.innerHTML = h;
+    return;
+  }
+  const pools = [...met].sort((a, b) => (num(b?.liquidity, b?.tvl) || 0) - (num(a?.liquidity, a?.tvl) || 0)).slice(0, 4);
+  h += pools.map((p) => {
+    const pairName = p.name || ((p.token_x?.symbol || p.mint_x_symbol || '?') + '/' + (p.token_y?.symbol || p.mint_y_symbol || '?'));
+    const poolAddress = p.address || p.pair_address || '';
+    const tvl = num(p.liquidity, p.tvl);
+    const vol = num(p.trade_volume_24h, p.volume?.['24h'], p.volume_24h);
+    return `<div class="history-item">
+      <div class="history-token">${esc(pairName)}</div>
+      <div class="history-meta">${esc(sh(poolAddress))}</div>
+      <div class="history-meta">TVL ${esc(tvl != null ? fm(tvl) : 'N/A')} · Vol ${esc(vol != null ? fm(vol) : 'N/A')}</div>
+      <div class="history-row">
+        <a class="history-open" href="https://app.meteora.ag/dlmm/${esc(poolAddress)}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;text-align:center">Open</a>
+      </div>
+    </div>`;
+  }).join('');
+  el.innerHTML = h;
+}
+function openHistoryToken(mint) {
+  $('ca').value = mint;
+  analyze(mint);
+}
+function refreshCurrentScan() {
+  if (!currentMint) return;
+  analyze(currentMint);
+}
+loadHistory();
+
+/* Color logic */
+function getColor(key, value) {
+  if (value == null || isNaN(value)) return '';
+  const s = settings[key] || DEFAULT_SETTINGS[key];
+  const def = DEFAULT_SETTINGS[key];
+  const gMax = s.g, yMax = s.y;
+  if (def.dir === 'asc') {
+    // lower = better: <=g green, <=y yellow, else red
+    if (value <= gMax) return 'green';
+    if (value <= yMax) return 'yellow';
+    return 'red';
+  } else {
+    // higher = better: >=g green, >=y yellow, else red
+    if (value >= gMax) return 'green';
+    if (value >= yMax) return 'yellow';
+    return 'red';
+  }
 }
 
-/**
- * Normalise RugCheck raw score to 0-100.
- *
- * The raw "score" from the API is a cumulative sum of risk points:
- *   - 0        = no risks found  → 0 /100
- *   - ~300     = minor issues    → ~15/100
- *   - ~2000    = moderate        → ~50/100
- *   - ~5000    = high risk       → ~75/100
- *   - 10000+   = extreme risk    → 90-100/100
- *
- * We use a logarithmic curve so low scores spread out nicely
- * and very high scores converge toward 100.
- */
-function normaliseScore(raw) {
-  if (raw == null || raw < 0) return null;
-  if (raw === 0) return 0;
-  // log curve: score100 = 100 * log10(1 + raw) / log10(1 + 20000)
-  // 20000 chosen as practical max (TRUMP token = 18715)
-  const max = 20000;
-  const score100 = 100 * Math.log10(1 + raw) / Math.log10(1 + max);
-  return Math.round(Math.min(score100, 100) * 10) / 10; // 1 decimal
+/* ═══════════════════════════════════════════
+   SETTINGS PANEL
+   ═══════════════════════════════════════════ */
+function openSettings() {
+  document.getElementById('settingsOverlay').classList.add('open');
+  renderSettingsRows();
+}
+function closeSettings() { document.getElementById('settingsOverlay').classList.remove('open'); }
+function openChartOverlay(title, url) {
+  if (!url) return;
+  currentChartUrl = url;
+  $('chartModalTitle').textContent = title || 'Token Chart';
+  $('chartModalFrame').innerHTML = `<iframe src="${url}" title="${esc(title || 'Token Chart')}" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>`;
+  $('chartOverlay').classList.add('open');
+}
+function closeChartOverlay() {
+  $('chartOverlay').classList.remove('open');
+  $('chartModalFrame').innerHTML = '';
+}
+function renderSettingsRows() {
+  let h = '';
+  for (const [k, def] of Object.entries(DEFAULT_SETTINGS)) {
+    const s = settings[k] || { g: def.g, y: def.y };
+    const arrow = def.dir === 'asc' ? '↑' : '↓';
+    h += `<div class="setting-row">
+      <span class="slbl">${def.label} ${arrow}</span>
+      <input type="number" id="s_${k}_g" value="${s.g}">
+      <input type="number" id="s_${k}_y" value="${s.y}">
+      <input value="auto" disabled style="color:var(--t2);text-align:center">
+    </div>`;
+  }
+  document.getElementById('settingsRows').innerHTML = h;
+}
+function saveSettings() {
+  for (const k of Object.keys(DEFAULT_SETTINGS)) {
+    const g = Number(document.getElementById('s_'+k+'_g').value);
+    const y = Number(document.getElementById('s_'+k+'_y').value);
+    settings[k] = { g, y };
+  }
+  saveSettingsToStorage();
+  closeSettings();
+  alert('Settings saved!');
+}
+function resetSettings() {
+  settings = {};
+  for (const [k,v] of Object.entries(DEFAULT_SETTINGS)) settings[k] = { g: v.g, y: v.y };
+  saveSettingsToStorage();
+  renderSettingsRows();
 }
 
-module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', '*');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+/* ═══════════════════════════════════════════
+   API CALLS
+   ═══════════════════════════════════════════ */
+const $=id=>document.getElementById(id);
 
+// Progress tracking
+let steps = {};
+function initProgress(names) {
+  steps = {};
+  names.forEach(n => steps[n] = 'loading');
+  $('progressBox').style.display = 'block';
+  updateProgress();
+}
+function setStep(name, state) { steps[name] = state; updateProgress(); }
+function updateProgress() {
+  const total = Object.keys(steps).length;
+  const done = Object.values(steps).filter(s=>s==='done'||s==='fail').length;
+  $('pbarFill').style.width = (done/total*100)+'%';
+  let h = '';
+  for (const [n,s] of Object.entries(steps)) {
+    const cls = s==='done'?'done':s==='fail'?'fail':'loading';
+    const icon = s==='done'?'✓':s==='fail'?'✗':'⟳';
+    h += `<span class="${cls}">${icon} ${n}</span>`;
+  }
+  $('pstatus').innerHTML = h;
+}
+
+// 1. RUGCHECK
+async function fetchRugCheck(mint) {
+  setStep('RugCheck', 'loading');
   try {
-    const mint = req.query.mint;
-    if (!mint) return res.status(400).json({ error: 'Missing ?mint=' });
+    const r = await fetch('/api/rugcheck?mint='+encodeURIComponent(mint), { signal: AbortSignal.timeout(20000) });
+    const d = await r.json().catch(() => null);
+    if (!r.ok) throw new Error((d && (d.message || d.error)) || ('HTTP '+r.status));
+    if (!d) throw new Error('Empty RugCheck response');
+    setStep('RugCheck', 'done');
+    return d;
+  } catch(e) {
+    setStep('RugCheck', 'fail');
+    return { __error: e.message || 'Unknown RugCheck error', risks: [] };
+  }
+}
 
-    const base = 'https://api.rugcheck.xyz/v1/tokens/' + encodeURIComponent(mint);
-
-    const attempts = [
-      { label: 'report', url: base + '/report' },
-      { label: 'summary', url: base + '/report/summary' },
+// 2. JUPITER
+async function fetchJupiter(mint) {
+  setStep('Jupiter', 'loading');
+  try {
+    const sources = [
+      { name: 'proxy', url: '/api/jupiter?query='+encodeURIComponent(mint) },
+      { name: 'api', url: 'https://api.jup.ag/tokens/v2/search?query='+encodeURIComponent(mint) },
+      { name: 'lite', url: 'https://lite-api.jup.ag/tokens/v2/search?query='+encodeURIComponent(mint) },
     ];
-
-    const settled = await Promise.all(attempts.map(async (attempt) => {
+    const results = await Promise.all(sources.map(async (source) => {
       try {
-        const { response, data } = await fetchJson(attempt.url);
-        return {
-          label: attempt.label,
-          ok: response.ok,
-          status: response.status,
-          data,
-          message: data?.message || data?.error || (response.ok ? null : ('HTTP ' + response.status)),
-        };
-      } catch (err) {
-        return {
-          label: attempt.label,
-          ok: false,
-          status: null,
-          data: null,
-          message: err.message,
-        };
+        const r = await fetch(source.url, { signal: AbortSignal.timeout(20000) });
+        if (!r.ok) throw new Error('HTTP '+r.status);
+        const data = await r.json();
+        return { source: source.name, data };
+      } catch(e) {
+        return { source: source.name, error: e.message };
       }
     }));
-
-    const report = settled.find((item) => item.label === 'report' && item.ok)?.data || null;
-    const summary = settled.find((item) => item.label === 'summary' && item.ok)?.data || null;
-
-    if (report || summary) {
-      const merged = {
-        ...(summary && typeof summary === 'object' ? summary : {}),
-        ...(report && typeof report === 'object' ? report : {}),
-      };
-
-      if (!Array.isArray(merged.risks)) {
-        merged.risks = Array.isArray(report?.risks) ? report.risks : Array.isArray(summary?.risks) ? summary.risks : [];
-      }
-
-      if (!merged.tokenMeta && report?.fileMeta) {
-        merged.tokenMeta = report.fileMeta;
-      }
-
-      if (!merged.token) {
-        merged.token = {};
-      }
-
-      if (merged.freezeAuthority == null && Object.prototype.hasOwnProperty.call(merged.token, 'freezeAuthority')) {
-        merged.freezeAuthority = merged.token.freezeAuthority;
-      }
-
-      if (merged.mintAuthority == null && Object.prototype.hasOwnProperty.call(merged.token, 'mintAuthority')) {
-        merged.mintAuthority = merged.token.mintAuthority;
-      }
-
-      // ── SCORE NORMALISATION ────────────────────────────────────
-      //
-      // API fields:
-      //   score             → raw cumulative risk points (0 … 20000+)
-      //   score_normalised  → 0-100 (may or may not exist)
-      //
-      // Strategy:
-      //   1. If score_normalised exists → use it directly
-      //   2. Otherwise               → compute from raw via log curve
-      //
-      // The frontend reads "score" and shows it as X / 100.
-
-      const rawScore = report?.score ?? summary?.score ?? null;
-      const normScore = report?.score_normalised ?? summary?.score_normalised ?? null;
-
-      merged.score_raw = rawScore;
-
-      if (normScore != null) {
-        merged.score = normScore;
-      } else {
-        merged.score = normaliseScore(rawScore);
-      }
-
-      merged.score_normalised = merged.score;
-      // ── END SCORE NORMALISATION ────────────────────────────────
-
-      merged.__sources = settled.filter((item) => item.ok).map((item) => item.label);
-
-      return res.status(200).json(merged);
+    let merged = null;
+    const matchedSources = [];
+    for (const result of results) {
+      const data = result.data;
+      if (!data) continue;
+      const match = Array.isArray(data) ? (data.find(t => t.id === mint) || data[0] || null) : data;
+      if (!match) continue;
+      matchedSources.push(result.source);
+      merged = merged ? { ...merged, ...match, audit: { ...(merged.audit || {}), ...(match.audit || {}) }, stats24h: { ...(merged.stats24h || {}), ...(match.stats24h || {}) }, stats6h: { ...(merged.stats6h || {}), ...(match.stats6h || {}) }, stats1h: { ...(merged.stats1h || {}), ...(match.stats1h || {}) }, stats5m: { ...(merged.stats5m || {}), ...(match.stats5m || {}) } } : { ...match };
     }
+    const d = merged;
+    if (d) d.__sources = matchedSources;
+    if (!d) throw new Error('No Jupiter token match found');
+    setStep('Jupiter', 'done');
+    return d;
+  } catch(e) { setStep('Jupiter', 'fail'); return null; }
+}
 
-    const lastError = settled.find((item) => item.message) || null;
-
-    return res.status(502).json({
-      error: 'rugcheck_upstream_error',
-      message: lastError?.message || 'Unknown RugCheck error',
-      step: lastError?.label || null,
-      upstream_status: lastError?.status || null,
-      body: lastError?.body || null,
-    });
-  } catch (err) {
-    return res.status(500).json({ error: 'rugcheck_proxy_error', message: err.message });
+// Helper: call our proxies
+async function meteoraProxy(path) {
+  const url = '/api/meteora?path='+encodeURIComponent(path || '/pools');
+  const r = await fetch(url, { signal: AbortSignal.timeout(30000) });
+  const data = await r.json().catch(() => null);
+  if (!r.ok) {
+    const message = data?.message || data?.error || ('HTTP '+r.status);
+    throw new Error(message);
   }
-};
+  return data;
+}
+
+function normalizeMeteoraPools(data, mint) {
+  const list = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
+  return list.filter((pool) => {
+    const mintX = pool?.token_x?.address || pool?.mint_x;
+    const mintY = pool?.token_y?.address || pool?.mint_y;
+    return mintX === mint || mintY === mint;
+  });
+}
+
+// 3. METEORA (via separate proxy)
+async function fetchMeteora(mint) {
+  setStep('Meteora', 'loading');
+  try {
+    let pools = [];
+    try {
+      pools = normalizeMeteoraPools(await meteoraProxy('/pools?page=1&page_size=100&query='+encodeURIComponent(mint)), mint);
+    } catch(e) {}
+    if (!pools.length) {
+      pools = normalizeMeteoraPools(await meteoraProxy('/pair/all'), mint);
+    }
+    setStep('Meteora', pools.length ? 'done' : 'fail');
+    return pools;
+  } catch(e) { setStep('Meteora', 'fail'); return []; }
+}
+
+/* ═══════════════════════════════════════════
+   MAIN ANALYZE
+   ═══════════════════════════════════════════ */
+async function analyze(forcedMint) {
+  const mint = (forcedMint || $('ca').value.trim()).trim();
+  if (!mint || mint.length < 30) return alert('Enter a valid Solana contract address');
+  currentMint = mint;
+  $('ca').value = mint;
+  renderHistory();
+  $('goBtn').disabled = true;
+  $('results').innerHTML = '';
+  renderSidebarMeteora([]);
+  initProgress(['RugCheck', 'Jupiter', 'Meteora']);
+
+  // Fetch all in parallel
+  const [rugcheck, jupiter, meteora] = await Promise.all([
+    fetchRugCheck(mint),
+    fetchJupiter(mint),
+    fetchMeteora(mint),
+  ]);
+
+  // Build results
+  renderResults(mint, rugcheck, jupiter, meteora);
+  renderSidebarMeteora(meteora);
+  pushHistory({
+    mint,
+    name: jupiter?.name || rugcheck?.tokenMeta?.name || 'Unknown Token',
+    symbol: jupiter?.symbol || rugcheck?.tokenMeta?.symbol || '',
+    updatedAt: new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+  });
+  $('goBtn').disabled = false;
+}
+
+/* ═══════════════════════════════════════════
+   RENDER
+   ═══════════════════════════════════════════ */
+function esc(s) { const d=document.createElement('div');d.textContent=s;return d.innerHTML; }
+function sh(a) { return a ? a.slice(0,6)+'…'+a.slice(-4) : '—'; }
+function fm(n,d=2) { if(n==null||isNaN(n))return'—';n=+n;if(Math.abs(n)>=1e9)return'$'+(n/1e9).toFixed(1)+'B';if(Math.abs(n)>=1e6)return'$'+(n/1e6).toFixed(1)+'M';if(Math.abs(n)>=1e3)return'$'+(n/1e3).toFixed(d)+'K';return'$'+n.toFixed(d);}
+
+function num(...values) {
+  for (const value of values) {
+    if (value == null || value === '') continue;
+    const parsed = Number(value);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  return null;
+}
+function pct(...values) {
+  for (const value of values) {
+    const parsed = num(value);
+    if (parsed == null) continue;
+    return parsed <= 1 ? parsed * 100 : parsed;
+  }
+  return null;
+}
+function yesNo(value) {
+  if (value == null) return 'N/A';
+  return value ? 'Yes' : 'No';
+}
+function ageFromTimestamp(...values) {
+  const ts = num(...values);
+  if (ts == null) return null;
+  const seconds = ts > 1e12 ? ts / 1000 : ts;
+  return (Date.now()/1000 - seconds) / 3600;
+}
+function ageDisplay(hours) {
+  if (hours == null || Number.isNaN(hours)) return 'N/A';
+  const totalHours = Math.max(0, Math.floor(hours));
+  const days = Math.floor(totalHours / 24);
+  const remHours = totalHours % 24;
+  if (days <= 0) return remHours + 'h';
+  return `${days}d ${remHours}h`;
+}
+function fmSol(n, d=2) {
+  if (n == null || isNaN(n)) return 'N/A';
+  n = +n;
+  if (Math.abs(n) >= 1e6) return (n/1e6).toFixed(2) + 'M SOL';
+  if (Math.abs(n) >= 1e3) return (n/1e3).toFixed(2) + 'K SOL';
+  return n.toFixed(d) + ' SOL';
+}
+function fmtPct(n) {
+  if (n == null || isNaN(n)) return 'N/A';
+  const v = +n;
+  const abs = Math.abs(v);
+  if (abs >= 100) return (v > 0 ? '+' : '') + (v/100).toFixed(0) + 'x';
+  return (v > 0 ? '+' : '') + v.toFixed(2) + '%';
+}
+function fmtVol(n) {
+  if (n == null || isNaN(n)) return 'N/A';
+  return fm(n);
+}
+function normalizeUrl(url, base='https://') {
+  if (!url) return '';
+  const value = String(url).trim();
+  if (!value) return '';
+  return /^https?:\/\//i.test(value) ? value : base + value.replace(/^\/+/, '');
+}
+function firstUrl(...values) {
+  for (const value of values) {
+    const normalized = normalizeUrl(value);
+    if (normalized) return normalized;
+  }
+  return '';
+}
+function firstHandle(...values) {
+  for (const value of values) {
+    if (!value) continue;
+    const handle = String(value).trim().replace(/^@/, '');
+    if (handle) return handle;
+  }
+  return '';
+}
+
+function card(label, value, displayValue, key, sub) {
+  const color = getColor(key, value);
+  return `<div class="card ${color}">
+    <div class="label">${label}</div>
+    <div class="value">${displayValue}</div>
+    ${sub ? '<div class="sub">'+sub+'</div>' : ''}
+  </div>`;
+}
+
+function renderResults(mint, rc, jup, met) {
+  let h = '';
+
+  // ── Token header ──
+  const name = jup?.name || rc?.tokenMeta?.name || '?';
+  const symbol = jup?.symbol || rc?.tokenMeta?.symbol || '?';
+  const logo = jup?.icon || '';
+  const gmgnUrl = 'https://gmgn.ai/sol/token/' + encodeURIComponent(mint);
+  const bubbleMapsUrl = 'https://app.bubblemaps.io/sol/token/' + encodeURIComponent(mint) + '?hide_context=1&hideSidebar=1&partnerId=demo';
+  const xHandle = firstHandle(
+    jup?.extensions?.twitter,
+    jup?.socials?.twitter,
+    jup?.twitter,
+    rc?.tokenMeta?.twitter,
+    rc?.twitter
+  );
+  const xUrl = firstUrl(
+    xHandle ? `x.com/${xHandle}` : '',
+    jup?.extensions?.twitter_url,
+    jup?.socials?.twitter_url,
+    jup?.twitter_url,
+    rc?.tokenMeta?.twitter_url,
+    rc?.twitter_url
+  );
+  const websiteUrl = firstUrl(
+    jup?.extensions?.website,
+    jup?.socials?.website,
+    jup?.website,
+    rc?.tokenMeta?.website,
+    rc?.website
+  );
+  const telegramUrl = firstUrl(
+    jup?.extensions?.telegram,
+    jup?.socials?.telegram,
+    jup?.telegram,
+    rc?.tokenMeta?.telegram,
+    rc?.telegram
+  );
+  const primaryPool = Array.isArray(met) && met.length ? [...met].sort((a,b) => (num(b?.liquidity, b?.tvl) || 0) - (num(a?.liquidity, a?.tvl) || 0))[0] : null;
+  const marketCap = num(jup?.marketCap, jup?.market_cap, jup?.fdv, jup?.mcap, rc?.tokenMeta?.marketCap);
+  const tokenAgeHours = ageFromTimestamp(
+    jup?.createdAt,
+    jup?.created_at,
+    jup?.mintedAt,
+    jup?.minted_at,
+    jup?.firstPool?.createdAt,
+    jup?.firstPool?.created_at,
+    primaryPool?.created_at,
+    primaryPool?.createdAt,
+    primaryPool?.pool_created_at,
+    primaryPool?.open_timestamp,
+    primaryPool?.openTime,
+    rc?.tokenMeta?.createdAt,
+    rc?.tokenMeta?.created_at
+  );
+  const totalFees24h = num(
+    jup?.fees,
+    jup?.stats24h?.fees,
+    jup?.fees24h,
+    jup?.fees_24h,
+    jup?.stats?.fees,
+    jup?.stats?.fees24h,
+    jup?.stats?.fees_24h,
+    jup?.stats?.fee,
+    jup?.fee,
+    jup?.fee24h,
+    jup?.fee_24h,
+    jup?.feesPaidSol,
+    jup?.fees_paid_sol,
+    primaryPool?.fees_paid_sol,
+    primaryPool?.feesPaidSol
+  );
+  const totalLiquidity = num(
+    jup?.liquidity,
+    jup?.liquidityUsd,
+    jup?.liquidity_usd,
+    rc?.tokenMeta?.liquidity,
+    rc?.liquidity,
+    (Array.isArray(met) ? met : []).reduce((sum, p) => sum + (num(p?.liquidity, p?.tvl) || 0), 0)
+  );
+  const topH = pct(jup?.audit?.topHoldersPercentage, jup?.holderMetrics?.top10Percentage);
+  const devH = pct(
+    jup?.audit?.devBalancePercentage,
+    jup?.audit?.devWalletPercentage,
+    jup?.audit?.developerPercentage,
+    jup?.audit?.devPercentage,
+    jup?.holderMetrics?.devPercentage,
+    jup?.holderMetrics?.developerPercentage,
+    jup?.devPercentage
+  );
+  const snipersH = pct(
+    jup?.audit?.snipersPercentage,
+    jup?.audit?.sniperPercentage,
+    jup?.audit?.sniperPct,
+    jup?.holderMetrics?.snipersPercentage,
+    jup?.holderMetrics?.sniperPercentage,
+    jup?.snipersPercentage
+  );
+  const bundlersH = pct(
+    jup?.audit?.bundlersPercentage,
+    jup?.audit?.bundlerPercentage
+  );
+  const freezeDisabled = jup?.audit?.freezeAuthorityDisabled;
+  const mintDisabled = jup?.audit?.mintAuthorityDisabled;
+  const dexLabel = jup?.dex || jup?.exchange || jup?.audit?.dex || primaryPool?.name || primaryPool?.pool_type || primaryPool?.dex || (jup?.tags?.includes('paid') ? 'Paid' : null);
+  const perfBuckets = [
+    { label: '5m', change: num(jup?.stats5m?.priceChange), volume: num(jup?.stats5m?.buyVolume, 0) + num(jup?.stats5m?.sellVolume, 0) },
+    { label: '1h', change: num(jup?.stats1h?.priceChange), volume: num(jup?.stats1h?.buyVolume, 0) + num(jup?.stats1h?.sellVolume, 0) },
+    { label: '6h', change: num(jup?.stats6h?.priceChange), volume: num(jup?.stats6h?.buyVolume, 0) + num(jup?.stats6h?.sellVolume, 0) },
+    { label: '24h', change: num(jup?.stats24h?.priceChange), volume: num(jup?.stats24h?.buyVolume, 0) + num(jup?.stats24h?.sellVolume, 0) },
+  ];
+  const chartPairAddress = primaryPool?.address || jup?.graduatedPool || '';
+  const chartUrl = chartPairAddress
+    ? `https://dexscreener.com/solana/${encodeURIComponent(chartPairAddress)}?embed=1&loadChartSettings=0&chartLeftToolbar=0&chartTheme=dark&theme=dark&chartStyle=0&chartType=usd&interval=5`
+    : '';
+  const geckoSecurityUrl = chartPairAddress
+    ? `https://www.geckoterminal.com/solana/pools/${encodeURIComponent(chartPairAddress)}/security?size=max&color=dark`
+    : '';
+  const chartExternalUrl = chartPairAddress
+    ? `https://dexscreener.com/solana/${encodeURIComponent(chartPairAddress)}`
+    : `https://dexscreener.com/solana/${encodeURIComponent(mint)}`;
+  const jupiterTokenUrl = `https://jup.ag/tokens/${encodeURIComponent(mint)}`;
+  const gmgnChartUrl = gmgnUrl;
+  const stats5m = jup?.stats5m || {};
+  const buyVol5m = num(stats5m?.buyVolume);
+  const sellVol5m = num(stats5m?.sellVolume);
+  const traders5m = num(stats5m?.numTraders);
+  const netBuyers5m = num(stats5m?.numNetBuyers);
+  const change5m = num(stats5m?.priceChange);
+  h += `<div class="token-hd">
+    <div class="token-main">
+      ${logo ? '<img src="'+esc(logo)+'" onerror="this.style.display=\'none\'">' : ''}
+      <div class="token-copy">
+        <div class="name">${esc(name)} <span class="sym">${esc(symbol)}</span></div>
+        <div class="addr">${esc(mint)}</div>
+        <div class="token-meta">
+          <div class="token-pill"><span class="k">MC</span><span>${esc(marketCap != null ? fm(marketCap) : 'N/A')}</span></div>
+          <div class="token-pill"><span class="k">Age</span><span>${esc(ageDisplay(tokenAgeHours))}</span></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="token-links">
+        ${xUrl ? `<a class="token-link" href="${esc(xUrl)}" target="_blank" rel="noopener noreferrer" title="Open X community"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2H21l-6.017 6.876L22 22h-5.828l-4.563-6.617L5.814 22H3.056l6.437-7.357L2 2h5.976l4.125 5.976L18.244 2Zm-1.02 18.244h1.528L7.146 3.676H5.506l11.718 16.568Z"/></svg><span>X</span></a>` : ''}
+        ${websiteUrl ? `<a class="token-link" href="${esc(websiteUrl)}" target="_blank" rel="noopener noreferrer" title="Open website"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10A10.012 10.012 0 0 0 12 2Zm6.93 9h-3.08a15.9 15.9 0 0 0-1.14-5.02A8.03 8.03 0 0 1 18.93 11ZM12 4.04c.83 0 2.43 2.09 2.96 6.96H9.04C9.57 6.13 11.17 4.04 12 4.04ZM9.29 5.98A15.9 15.9 0 0 0 8.15 11H5.07a8.03 8.03 0 0 1 4.22-5.02ZM4.26 13h3.89a15.9 15.9 0 0 0 1.14 5.02A8.03 8.03 0 0 1 4.26 13Zm7.74 6.96c-.83 0-2.43-2.09-2.96-6.96h5.92c-.53 4.87-2.13 6.96-2.96 6.96Zm2.71-1.94A15.9 15.9 0 0 0 15.85 13h3.89a8.03 8.03 0 0 1-5.03 5.02Z"/></svg><span>Site</span></a>` : ''}
+        ${telegramUrl ? `<a class="token-link" href="${esc(telegramUrl)}" target="_blank" rel="noopener noreferrer" title="Open Telegram community"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.78 18.65 9.95 14l8.47-7.64c.37-.33-.08-.5-.57-.17L7.39 12.8 2.88 11.39c-.98-.3-.99-.98.2-1.45L20.7 3.15c.82-.3 1.54.2 1.27 1.45l-3 14.15c-.2 1-.78 1.24-1.6.77l-4.44-3.28-2.14 2.06c-.24.24-.44.44-1.01.35Z"/></svg><span>Telegram</span></a>` : ''}
+        <a class="token-link" href="${gmgnUrl}" target="_blank" rel="noopener noreferrer"><span>GMGN</span></a>
+        <a class="token-link" href="${bubbleMapsUrl}" target="_blank" rel="noopener noreferrer"><span>Bubblemaps</span></a>
+      </div>
+    </div>
+    <div class="token-side">
+      <div class="chart-card">
+        <div class="chart-head">
+          <div class="chart-title">Token Chart</div>
+          <div class="chart-price">${esc(jup?.usdPrice != null ? fm(jup.usdPrice, 6) : 'N/A')}</div>
+        </div>
+        <div class="chart-preview">
+          <div class="chart-actions">
+            <a class="chart-link" href="${chartExternalUrl}" target="_blank" rel="noopener noreferrer">DexScreener</a>
+            <a class="chart-link" href="${gmgnChartUrl}" target="_blank" rel="noopener noreferrer">GMGN</a>
+            <a class="chart-link" href="${jupiterTokenUrl}" target="_blank" rel="noopener noreferrer">Jupiter</a>
+          </div>
+        </div>
+        <div class="focus-grid">
+          <div class="focus-chip"><div class="k">5m change</div><div class="v ${change5m == null ? '' : change5m >= 0 ? 'green' : 'red'}">${esc(fmtPct(change5m))}</div></div>
+          <div class="focus-chip"><div class="k">5m volume</div><div class="v">${esc(fmtVol(num(buyVol5m,0)+num(sellVol5m,0)))}</div></div>
+          <div class="focus-chip"><div class="k">5m buys / sells</div><div class="v">${esc(`${fmtVol(buyVol5m)} / ${fmtVol(sellVol5m)}`)}</div></div>
+          <div class="focus-chip"><div class="k">5m traders</div><div class="v">${esc(String(traders5m != null ? traders5m : 'N/A'))}${netBuyers5m != null ? `<span style="font-size:10px;color:var(--t2)"> · net ${esc(String(netBuyers5m))}</span>` : ''}</div></div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  // ── MAIN SCORES ──
+  h += '<div class="section"><div class="stitle"><span class="icon">📊</span> Main Scores</div><div class="grid">';
+
+  // RugCheck score
+  const rcScoreRaw = rc?.score ?? rc?.score_normalised ?? rc?.score_normalized ?? null;
+  const rcScore = rcScoreRaw != null && rcScoreRaw >= 0 ? Number(rcScoreRaw) : null;
+  const rugcheckHint = rc?.result
+    || (rc?.__sources?.length ? `Source: ${rc.__sources.join(', ')}` : '')
+    || '';
+  h += card('RugCheck Score', rcScore, rcScore != null ? `${Math.round(rcScore)}/100` : 'N/A', 'rugcheck_score',
+    rugcheckHint);
+
+  // Jupiter Organic Score
+  const orgScore = jup?.organicScore ?? null;
+  h += card('Organic Score', orgScore, orgScore != null ? orgScore.toFixed(1) : 'N/A', 'organic_score',
+    jup?.organicScoreLabel || '');
+
+  h += '</div></div>';
+
+  if (rc?.__error) {
+    h += `<div class="section"><div class="card red"><div class="label">RugCheck Status</div><div class="value" style="font-size:13px;color:inherit">${esc(rc.__error)}</div></div></div>`;
+  } else if (rc && !rc?.tokenMeta && !(rc?.risks?.length) && rcScore == null) {
+    h += '<div class="section"><div class="card"><div class="label">RugCheck Status</div><div class="value" style="font-size:13px;color:var(--t)">RugCheck responded, but it did not return a detailed report for this mint.</div></div></div>';
+  }
+
+  // ── MARKET DATA ──
+  h += '<div class="section"><div class="stitle"><span class="icon">💰</span> Market Data</div><div class="grid">';
+  h += card('Fees Paid', totalFees24h, totalFees24h != null ? fmSol(totalFees24h) : 'N/A', 'total_fees_sol', primaryPool ? 'Primary source fallback applied' : '');
+  h += card('Liquidity', totalLiquidity, totalLiquidity != null ? fm(totalLiquidity) : 'N/A', 'market_cap', Array.isArray(met) && met.length ? `${met.length} pools` : '');
+  h += card('Top 10 H.', topH, topH != null ? topH.toFixed(2)+'%' : 'N/A', 'top_holders_pct');
+  h += `<div class="card ${freezeDisabled === true ? 'green' : freezeDisabled === false ? 'red' : ''}"><div class="label">Freeze Auth</div><div class="value" style="font-size:16px">${esc(yesNo(freezeDisabled === null ? null : !freezeDisabled))}</div></div>`;
+  h += `<div class="card ${mintDisabled === true ? 'green' : mintDisabled === false ? 'red' : ''}"><div class="label">Mint Auth</div><div class="value" style="font-size:16px">${esc(yesNo(mintDisabled === null ? null : !mintDisabled))}</div></div>`;
+  h += `<div class="card"><div class="label">Dex</div><div class="value" style="font-size:16px">${esc(dexLabel || 'N/A')}</div></div>`;
+  h += '</div></div>';
+
+  h += '<div class="section"><div class="stitle"><span class="icon">📈</span> Performance & Volume</div><div class="grid">';
+  perfBuckets.forEach((bucket) => {
+    const bucketColor = bucket.change == null ? '' : bucket.change >= 0 ? 'green' : 'red';
+    h += `<div class="card ${bucketColor}">
+      <div class="label">${bucket.label}</div>
+      <div class="value">${esc(fmtPct(bucket.change))}</div>
+      <div class="sub">Vol ${esc(fmtVol(bucket.volume))}</div>
+    </div>`;
+  });
+  h += '</div></div>';
+
+  // ── HOLDER SIGNALS (hidden for now) ──
+  const hiddenHolderSignals = '<div class="section" style="display:none"><div class="stitle"><span class="icon">🪐</span> Holder Signals</div><div class="grid">'
+    + card('Bundlers', bundlersH, bundlersH != null ? bundlersH.toFixed(2)+'%' : 'N/A', 'bundlers_pct')
+    + card('Insiders', devH, devH != null ? devH.toFixed(2)+'%' : 'N/A', 'bundlers_pct')
+    + card('Snipers H.', snipersH, snipersH != null ? snipersH.toFixed(2)+'%' : 'N/A', 'phishing_pct')
+    + '</div></div>';
+  h += hiddenHolderSignals;
+
+  if (geckoSecurityUrl) {
+    h += '<div class="section"><div class="stitle"><span class="icon">🦎</span> GeckoTerminal Security Card</div>';
+    h += `<div class="card embed-card"><iframe class="embed-frame" height="520" title="GeckoTerminal Security Card" src="${geckoSecurityUrl}" frameborder="0" allow="clipboard-write" allowfullscreen></iframe></div></div>`;
+  }
+
+  // ── TOKEN DETAILS ──
+  h += '<div class="section"><div class="stitle"><span class="icon">ℹ️</span> Token Details</div><div class="grid">';
+  const extraFields = [
+    ['Holders', num(jup?.holderCount, jup?.holders, rc?.token?.holderCount)?.toLocaleString()],
+    ['Volume 24h', num(jup?.daily_volume, jup?.volume24h, primaryPool?.trade_volume_24h, primaryPool?.volume?.['24h']) != null ? fm(num(jup?.daily_volume, jup?.volume24h, primaryPool?.trade_volume_24h, primaryPool?.volume?.['24h'])) : null],
+    ['Primary Pool', primaryPool?.name || (primaryPool ? `${primaryPool?.token_x?.symbol || primaryPool?.mint_x_symbol || '?'} / ${primaryPool?.token_y?.symbol || primaryPool?.mint_y_symbol || '?'}` : null)],
+    ['Jupiter Verified', jup?.isVerified != null ? (jup.isVerified ? '✅ Yes' : '❌ No') : null],
+    ['Tags Jup', jup?.tags?.join(', ')],
+    ['Launchpad', jup?.launchpad],
+    ['Token Program', jup?.tokenProgram || rc?.tokenProgram],
+  ];
+  extraFields.forEach(([label, val]) => {
+    if (val != null && val !== '' && val !== undefined) {
+      h += `<div class="card"><div class="label">${label}</div><div class="value" style="font-size:13px;color:var(--t)">${esc(String(val))}</div></div>`;
+    }
+  });
+  h += '</div></div>';
+
+  // ── RUGCHECK RISKS ──
+  if (rc?.risks?.length) {
+    h += '<div class="section"><div class="stitle"><span class="icon">⚠️</span> RugCheck Risks</div><div class="grid">';
+    rc.risks.forEach(r => {
+      const col = r.level === 'danger' ? 'red' : r.level === 'warn' ? 'yellow' : '';
+      h += `<div class="card ${col}">
+        <div class="label">${esc(r.name||'Risk')}</div>
+        <div class="value" style="font-size:11px;color:inherit">${esc(r.description||'')}</div>
+        <div class="sub">Score: ${r.score||0} · Level: ${r.level||'?'}</div>
+      </div>`;
+    });
+    h += '</div></div>';
+  }
+
+  h += '<div class="section"><div class="stitle"><span class="icon">🫧</span> Holder Bubble Map</div>';
+  h += `<div class="card" style="padding:8px"><iframe src="${bubbleMapsUrl}" title="Bubblemaps" style="width:100%;height:560px;border:0;border-radius:10px;background:#050816"></iframe></div></div>`;
+
+  $('results').innerHTML = h;
+}
+
+/* ═══════════════════════════════════════════
+   KEYBOARD
+   ═══════════════════════════════════════════ */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.activeElement === $('ca') && !$('goBtn').disabled) analyze();
+  if (e.key === 'Escape') closeSettings();
+  if (e.key === 'Escape') closeChartOverlay();
+});
+renderHistory();
+</script>
+</body>
+</html>
