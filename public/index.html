@@ -802,9 +802,13 @@ function renderResults(mint, rc, jup, met) {
   h += '<div class="section"><div class="stitle"><span class="icon">📊</span> Main Scores</div><div class="grid">';
 
   // RugCheck score
-  const rcScore = rc?.score ?? null;
+  const rcScoreRaw = rc?.score ?? null;
+  const rcScore = rcScoreRaw != null && rcScoreRaw >= 0 ? rcScoreRaw : null;
+  const rugcheckHint = rc?.result
+    || (rc?.__sources?.length ? `Source: ${rc.__sources.join(', ')}` : '')
+    || '';
   h += card('RugCheck Score', rcScore, rcScore != null ? rcScore.toLocaleString() : 'N/A', 'rugcheck_score',
-    rc?.result || '');
+    rugcheckHint);
 
   // Jupiter Organic Score
   const orgScore = jup?.organicScore ?? null;
@@ -812,6 +816,10 @@ function renderResults(mint, rc, jup, met) {
     jup?.organicScoreLabel || '');
 
   h += '</div></div>';
+
+  if (rc && !rc?.tokenMeta && !(rc?.risks?.length) && rcScore == null) {
+    h += '<div class="section"><div class="card"><div class="label">RugCheck Status</div><div class="value" style="font-size:13px;color:var(--t)">RugCheck responded, but it did not return a detailed report for this mint.</div></div></div>';
+  }
 
   // ── MARKET DATA ──
   h += '<div class="section"><div class="stitle"><span class="icon">💰</span> Market Data</div><div class="grid">';
