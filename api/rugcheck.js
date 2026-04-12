@@ -1,17 +1,41 @@
 const fetch = require('node-fetch');
 
+function getApiKey() {
+  return process.env.RUGCHECK_API_KEY || process.env.RUGCHECK_API || process.env.RUGCHECK_KEY || '';
+}
+
+function buildHeaders(apiKey) {
+  return {
+    'Accept': 'application/json',
+    'User-Agent': 'Mozilla/5.0',
+    ...(apiKey ? { 'X-API-KEY': apiKey } : {}),
+  };
+}
+
+function isInvalidApiKey(response, data) {
+  if (!response || response.ok) return false;
+  const msg = String(data?.message || data?.error || '').toLowerCase();
+  return msg.includes('invalid api key') || msg.includes('invalid api-key') || msg.includes('api key');
+}
+
 async function fetchJson(url) {
-  const apiKey = process.env.RUGCHECK_API_KEY || process.env.RUGCHECK_API || process.env.RUGCHECK_KEY || '';
-  const response = await fetch(url, {
-    headers: {
-      'Accept': 'application/json',
-      'User-Agent': 'Mozilla/5.0',
-      ...(apiKey ? { 'X-API-KEY': apiKey, 'Authorization': 'Bearer ' + apiKey } : {}),
-    },
+  const apiKey = getApiKey();
+  let response = await fetch(url, {
+    headers: buildHeaders(apiKey),
     timeout: 20000,
   });
 
-  const data = await response.json().catch(() => null);
+  let data = await response.json().catch(() => null);
+
+  // If a bad key is configured in Vercel, fall back to the public request path.
+  if (apiKey && isInvalidApiKey(response, data)) {
+    response = await fetch(url, {
+      headers: buildHeaders(''),
+      timeout: 20000,
+    });
+    data = await response.json().catch(() => null);
+  }
+
   return { response, data };
 }
 
