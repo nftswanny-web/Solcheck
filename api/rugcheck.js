@@ -1,14 +1,19 @@
 const fetch = require('node-fetch');
 
+const RUGCHECK_KEY = process.env.RUGCHECK_API_KEY || '';
+
 async function fetchJson(url) {
+  const headers = {
+    'Accept': 'application/json',
+    'User-Agent': 'Mozilla/5.0',
+  };
+  if (RUGCHECK_KEY) {
+    headers['Authorization'] = 'Bearer ' + RUGCHECK_KEY;
+  }
   const response = await fetch(url, {
-    headers: {
-      'Accept': 'application/json',
-      'User-Agent': 'Mozilla/5.0',
-    },
+    headers,
     timeout: 20000,
   });
-
   const data = await response.json().catch(() => null);
   return { response, data };
 }
@@ -24,6 +29,7 @@ module.exports = async (req, res) => {
     if (!mint) return res.status(400).json({ error: 'Missing ?mint=' });
 
     const base = 'https://api.rugcheck.xyz/v1/tokens/' + encodeURIComponent(mint);
+
     const attempts = [
       { label: 'report', url: base + '/report' },
       { label: 'summary', url: base + '/report/summary' },
@@ -84,6 +90,7 @@ module.exports = async (req, res) => {
       }
 
       merged.__sources = settled.filter((item) => item.ok).map((item) => item.label);
+
       return res.status(200).json(merged);
     }
 
