@@ -788,6 +788,8 @@ function normalizeGmgnSignals(raw) {
   ].filter(Boolean);
 
   const snipersCount = findMetric(payloads, [
+    'data.wallet_tags_stat.sniper_wallets',
+    'wallet_tags_stat.sniper_wallets',
     'sniper_count',
     'sniperCount',
     'snipers',
@@ -795,6 +797,8 @@ function normalizeGmgnSignals(raw) {
     'data.sniper_count',
   ]);
   const snipersRatio = findMetric(payloads, [
+    'data.stat.top_sniper_percentage',
+    'stat.top_sniper_percentage',
     'sniper_hold_rate',
     'sniper_amount_rate',
     'sniper_ratio',
@@ -803,12 +807,16 @@ function normalizeGmgnSignals(raw) {
     'sniperPercent',
   ]);
   const insidersCount = findMetric(payloads, [
+    'data.wallet_tags_stat.rat_trader_wallets',
+    'wallet_tags_stat.rat_trader_wallets',
     'suspected_insider_count',
     'insider_count',
     'insiders_count',
     'insiderCount',
   ]);
   const insidersRatio = findMetric(payloads, [
+    'data.stat.top_rat_trader_percentage',
+    'stat.top_rat_trader_percentage',
     'suspected_insider_hold_rate',
     'insider_hold_rate',
     'insider_amount_rate',
@@ -817,6 +825,8 @@ function normalizeGmgnSignals(raw) {
     'insiderPercent',
   ]);
   const bundledCount = findMetric(payloads, [
+    'data.wallet_tags_stat.bundler_wallets',
+    'wallet_tags_stat.bundler_wallets',
     'bundler_count',
     'bundled_wallet_count',
     'bundled_count',
@@ -824,6 +834,8 @@ function normalizeGmgnSignals(raw) {
     'bundlerCount',
   ]);
   const bundledRatio = findMetric(payloads, [
+    'data.stat.top_bundler_trader_percentage',
+    'stat.top_bundler_trader_percentage',
     'bundler_trader_amount_rate',
     'bundled_wallet_hold_rate',
     'bundled_wallet_percentage',
@@ -854,53 +866,43 @@ function normalizeGmgnSignals(raw) {
 async function fetchGMGN(mint) {
   setStep('GMGN', 'loading');
   try {
-    const sources = [
-      '/api/gmgn?path=' + encodeURIComponent('/api/v1/token_info/sol/' + mint),
-      '/api/gmgn?path=' + encodeURIComponent('/defi/quotation/v1/tokens/sol/' + mint),
-    ];
-
-    let lastError = 'No GMGN response';
-    for (const url of sources) {
-      try {
-        const r = await fetch(url, { signal: AbortSignal.timeout(20000) });
-        const data = await r.json().catch(() => null);
-        if (!r.ok) {
-          if (data?.error === 'cloudflare_challenge') {
-            lastError = 'GMGN is currently blocking server requests with Cloudflare.';
-          } else if (data?.error === 'gmgn_non_json_response') {
-            lastError = 'GMGN returned a non-JSON response, likely due to bot protection.';
-          } else {
-            lastError = data?.message || data?.error || ('HTTP ' + r.status);
-          }
-          continue;
-        }
-        const signals = normalizeGmgnSignals(data);
-        const hasSignal = [
-          signals?.snipers?.count,
-          signals?.snipers?.holdingRatio,
-          signals?.insiders?.count,
-          signals?.insiders?.holdingRatio,
-          signals?.bundledWallets?.count,
-          signals?.bundledWallets?.holdingRatio,
-        ].some((value) => value != null);
-
-        if (hasSignal) {
-          setStep('GMGN', 'done');
-          return {
-            raw: data,
-            signals,
-            source: url.includes('/api/v1/token_info/') ? 'token_info' : 'quotation',
-          };
-        }
-
-        lastError = 'GMGN responded, but the sniper/insider/bundle fields were not present.';
-      } catch (e) {
-        lastError = e.message || 'GMGN request failed';
+    const r = await fetch('/api/gmgn?mint=' + encodeURIComponent(mint), { signal: AbortSignal.timeout(20000) });
+    const data = await r.json().catch(() => null);
+    if (!r.ok) {
+      let lastError = data?.message || data?.error || ('HTTP ' + r.status);
+      if (data?.error === 'cloudflare_challenge') {
+        const endpoint = data?.request?.endpoint ? ` ${data.request.endpoint}` : '';
+        lastError = `GMGN OpenAPI${endpoint} is still blocked by Cloudflare for this backend.`;
+      } else if (data?.error === 'gmgn_non_json_response') {
+        lastError = 'GMGN OpenAPI returned a non-JSON response.';
+      } else if (data?.error === 'gmgn_upstream_error') {
+        lastError = data?.body?.message || data?.body?.reason || lastError;
       }
+      setStep('GMGN', 'fail');
+      return { __error: lastError, signals: normalizeGmgnSignals(null), raw: data };
+    }
+
+    const signals = normalizeGmgnSignals(data);
+    const hasSignal = [
+      signals?.snipers?.count,
+      signals?.snipers?.holdingRatio,
+      signals?.insiders?.count,
+      signals?.insiders?.holdingRatio,
+      signals?.bundledWallets?.count,
+      signals?.bundledWallets?.holdingRatio,
+    ].some((value) => value != null);
+
+    if (hasSignal) {
+      setStep('GMGN', 'done');
+      return {
+        raw: data,
+        signals,
+        source: data?.__request?.endpoint || '/v1/token/info',
+      };
     }
 
     setStep('GMGN', 'fail');
-    return { __error: lastError, signals: normalizeGmgnSignals(null) };
+    return { __error: 'GMGN responded, but the sniper/insider/bundle fields were not present.', signals, raw: data };
   } catch (e) {
     setStep('GMGN', 'fail');
     return { __error: e.message || 'GMGN request failed', signals: normalizeGmgnSignals(null) };
