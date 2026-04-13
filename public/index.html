@@ -61,6 +61,8 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-se
 [data-theme="light"] .hero-stat{background:
   radial-gradient(circle at top left, rgba(49,166,117,.12), transparent 48%),
   linear-gradient(180deg,#fbfffd,#f1fbf6);border-color:#cfe7da;box-shadow:inset 0 1px 0 rgba(255,255,255,.92)}
+[data-theme="light"] .token-flag{background:#f2fbf7;border-color:#cfe7da;color:#0f5130}
+[data-theme="light"] .token-flag.bad{background:#fff4f5;border-color:#f0c6cb;color:#8e2630}
 [data-theme="light"] .token-link,
 [data-theme="light"] .pool-link,
 [data-theme="light"] .chart-link,
@@ -160,12 +162,12 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-se
 .card.red{background:var(--rbg);border-color:var(--rbd)}.card.red .value{color:var(--r)}
 
 /* Token header */
-.token-hd{display:grid;grid-template-columns:minmax(0,1fr) 300px;align-items:start;gap:16px;background:var(--s1);border:1px solid var(--brd);border-radius:12px;padding:14px 18px;margin-bottom:16px}
+.token-hd{display:grid;grid-template-columns:minmax(0,1fr) 300px;align-items:start;gap:22px;background:var(--s1);border:1px solid var(--brd);border-radius:12px;padding:18px 20px;margin-bottom:16px}
 .token-main{min-width:0}
 .token-copy{min-width:0}
 .token-title-row{display:flex;align-items:flex-start;gap:12px}
 .token-logo{width:42px;height:42px;border-radius:12px;flex:0 0 auto;object-fit:cover;border:1px solid var(--brd);background:var(--s2)}
-.token-side{display:flex;justify-content:flex-end;min-width:0}
+.token-side{display:flex;justify-content:flex-end;align-self:start;min-width:0;padding-top:16px}
 .chart-card{width:300px;max-width:100%;border:1px solid var(--brd);border-radius:12px;background:linear-gradient(180deg,var(--s2),rgba(17,17,37,.7));padding:10px 12px}
 .chart-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .chart-title{font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.08em}
@@ -187,16 +189,21 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-se
 .token-hd .name{font-size:18px;font-weight:800}
 .token-hd .sym{font-size:12px;color:var(--ac2);font-weight:600}
 .token-hd .addr{font-size:10px;color:var(--t2);font-family:'JetBrains Mono',monospace;word-break:break-all}
-.token-stats{display:grid;grid-template-columns:repeat(2,minmax(0,180px));gap:10px;margin-top:10px}
-.hero-stat{display:flex;flex-direction:column;justify-content:center;gap:5px;min-height:84px;padding:14px 16px;border-radius:18px;border:1px solid rgba(116,213,172,.32);background:
+.token-stats{display:grid;grid-template-columns:repeat(2,minmax(0,220px));gap:14px;margin-top:14px}
+.hero-stat{display:flex;flex-direction:column;justify-content:center;gap:6px;min-height:96px;padding:16px 18px;border-radius:18px;border:1px solid rgba(116,213,172,.32);background:
   radial-gradient(circle at top left, rgba(116,213,172,.12), transparent 48%),
   linear-gradient(180deg, rgba(10,20,18,.94), rgba(7,14,12,.92));box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
 .hero-stat .k{font-size:11px;color:var(--t2);text-transform:uppercase;letter-spacing:.08em;font-weight:700}
-.hero-stat .v{font-size:28px;line-height:1;font-weight:900;letter-spacing:-.03em}
+.hero-stat .v{font-size:34px;line-height:1.02;font-weight:900;letter-spacing:-.04em}
 .hero-stat .sub{font-size:11px;color:var(--t2)}
-.token-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.token-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .token-pill{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;border:1px solid var(--brd);background:rgba(124,92,252,.08);color:var(--t);font-size:11px;font-weight:700}
 .token-pill .k{color:var(--t2);font-weight:600}
+.token-flags{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.token-flag{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;border:1px solid rgba(116,213,172,.32);background:rgba(18,56,36,.18);color:#bdf7d7;font-size:11px;font-weight:800}
+.token-flag .dot{width:8px;height:8px;border-radius:999px;background:#35d0b8;box-shadow:0 0 0 3px rgba(53,208,184,.14)}
+.token-flag.bad{border-color:rgba(255,104,108,.28);background:rgba(66,16,22,.22);color:#ffc7cb}
+.token-flag.bad .dot{background:#ff686c;box-shadow:0 0 0 3px rgba(255,104,108,.14)}
 .token-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .token-link{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid var(--brd);background:var(--s2);color:var(--ac2);text-decoration:none;font-size:11px;font-weight:700}
 .token-link:hover{border-color:var(--ac);color:var(--t)}
@@ -1444,6 +1451,10 @@ function renderResults(mint, rc, jup, gmgn, met) {
         <div class="token-meta">
           <div class="token-pill"><span class="k">Age</span><span>${esc(ageDisplay(tokenAgeHours))}</span></div>
         </div>
+        <div class="token-flags">
+          <div class="token-flag ${mintDisabled === false ? 'bad' : ''}"><span class="dot"></span><span>Mint ${esc(yesNo(mintDisabled === null ? null : !mintDisabled))}</span></div>
+          <div class="token-flag ${freezeDisabled === false ? 'bad' : ''}"><span class="dot"></span><span>Freeze ${esc(yesNo(freezeDisabled === null ? null : !freezeDisabled))}</span></div>
+        </div>
         <div class="token-links">
           ${xUrl ? `<a class="token-link" href="${esc(xUrl)}" target="_blank" rel="noopener noreferrer" title="Open X community"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2H21l-6.017 6.876L22 22h-5.828l-4.563-6.617L5.814 22H3.056l6.437-7.357L2 2h5.976l4.125 5.976L18.244 2Zm-1.02 18.244h1.528L7.146 3.676H5.506l11.718 16.568Z"/></svg><span>X</span></a>` : ''}
           ${websiteUrl ? `<a class="token-link" href="${esc(websiteUrl)}" target="_blank" rel="noopener noreferrer" title="Open website"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10A10.012 10.012 0 0 0 12 2Zm6.93 9h-3.08a15.9 15.9 0 0 0-1.14-5.02A8.03 8.03 0 0 1 18.93 11ZM12 4.04c.83 0 2.43 2.09 2.96 6.96H9.04C9.57 6.13 11.17 4.04 12 4.04ZM9.29 5.98A15.9 15.9 0 0 0 8.15 11H5.07a8.03 8.03 0 0 1 4.22-5.02ZM4.26 13h3.89a15.9 15.9 0 0 0 1.14 5.02A8.03 8.03 0 0 1 4.26 13Zm7.74 6.96c-.83 0-2.43-2.09-2.96-6.96h5.92c-.53 4.87-2.13 6.96-2.96 6.96Zm2.71-1.94A15.9 15.9 0 0 0 15.85 13h3.89a8.03 8.03 0 0 1-5.03 5.02Z"/></svg><span>Site</span></a>` : ''}
@@ -1501,42 +1512,42 @@ function renderResults(mint, rc, jup, gmgn, met) {
     gmgnSnipersCount,
     gmgnSnipersCount != null ? String(Math.round(gmgnSnipersCount)) : 'N/A',
     'gmgn_snipers_count',
-    gmgnSnipersRatio != null ? `Holding ${gmgnSnipersRatio.toFixed(2)}%` : (gmgnSignals?.snipers?.sourceField ? `Source: ${gmgnSignals.snipers.sourceField}` : 'GMGN')
+    gmgnSnipersRatio != null ? `Holding ${gmgnSnipersRatio.toFixed(2)}%` : ''
   );
   h += card(
     'Insiders',
     gmgnInsidersRatio,
     gmgnInsidersRatio != null ? gmgnInsidersRatio.toFixed(2)+'%' : 'N/A',
     'gmgn_insiders_pct',
-    gmgnInsidersCount != null ? `${Math.round(gmgnInsidersCount)} wallets` : (gmgnSignals?.insiders?.sourceField ? `Source: ${gmgnSignals.insiders.sourceField}` : 'GMGN')
+    gmgnInsidersCount != null ? `${Math.round(gmgnInsidersCount)} wallets` : ''
   );
   h += card(
     'Bundled Wallets',
     gmgnBundledRatio,
     gmgnBundledRatio != null ? gmgnBundledRatio.toFixed(2)+'%' : 'N/A',
     'gmgn_bundled_pct',
-    gmgnBundledCount != null ? `${Math.round(gmgnBundledCount)} wallets` : (gmgnSignals?.bundledWallets?.sourceField ? `Source: ${gmgnSignals.bundledWallets.sourceField}` : 'GMGN')
+    gmgnBundledCount != null ? `${Math.round(gmgnBundledCount)} wallets` : ''
   );
   h += card(
     'Top 10 Holders',
     gmgnTop10Holders,
     gmgnTop10Holders != null ? gmgnTop10Holders.toFixed(2)+'%' : 'N/A',
     'gmgn_top10_pct',
-    gmgnSignals?.top10Holders?.sourceField ? `Source: ${gmgnSignals.top10Holders.sourceField}` : 'GMGN'
+    ''
   );
   h += card(
     'Phishing',
     gmgnPhishing,
     gmgnPhishing != null ? gmgnPhishing.toFixed(2)+'%' : 'N/A',
     'gmgn_phishing_pct',
-    gmgnSignals?.phishing?.sourceField ? `Source: ${gmgnSignals.phishing.sourceField}` : 'GMGN'
+    ''
   );
   h += card(
     'Total Fees',
     gmgnTotalFees,
     gmgnTotalFees != null ? fmSol(gmgnTotalFees, 4) : 'N/A',
     'gmgn_total_fees',
-    gmgnSignals?.totalFees?.sourceField ? `Source: ${gmgnSignals.totalFees.sourceField}` : 'GMGN'
+    ''
   );
   h += '</div></div>';
 
@@ -1545,14 +1556,6 @@ function renderResults(mint, rc, jup, gmgn, met) {
   } else if (rc && !rc?.tokenMeta && !(rc?.risks?.length) && rcScore == null) {
     h += '<div class="section"><div class="card"><div class="label">RugCheck Status</div><div class="value" style="font-size:13px;color:var(--t)">RugCheck responded, but it did not return a detailed report for this mint.</div></div></div>';
   }
-
-  // ── MARKET DATA ──
-  h += '<div class="section"><div class="stitle"><span class="icon">💰</span> Market Data</div><div class="grid">';
-  h += card('Top 10 H.', topH, topH != null ? topH.toFixed(2)+'%' : 'N/A', 'top_holders_pct');
-  h += `<div class="card ${freezeDisabled === true ? 'green' : freezeDisabled === false ? 'red' : ''}"><div class="label">Freeze Auth</div><div class="value" style="font-size:16px">${esc(yesNo(freezeDisabled === null ? null : !freezeDisabled))}</div></div>`;
-  h += `<div class="card ${mintDisabled === true ? 'green' : mintDisabled === false ? 'red' : ''}"><div class="label">Mint Auth</div><div class="value" style="font-size:16px">${esc(yesNo(mintDisabled === null ? null : !mintDisabled))}</div></div>`;
-  h += `<div class="card"><div class="label">Dex</div><div class="value" style="font-size:16px">${esc(dexLabel || 'N/A')}</div></div>`;
-  h += '</div></div>';
 
   h += '<div class="section"><div class="stitle"><span class="icon">📈</span> Performance & Volume</div><div class="grid">';
   perfBuckets.forEach((bucket) => {
