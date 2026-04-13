@@ -876,7 +876,11 @@ async function fetchGMGN(mint) {
       } else if (data?.error === 'gmgn_non_json_response') {
         lastError = 'GMGN OpenAPI returned a non-JSON response.';
       } else if (data?.error === 'gmgn_upstream_error') {
-        lastError = data?.body?.message || data?.body?.reason || lastError;
+        if (data?.upstream_status === 401) {
+          lastError = 'GMGN OpenAPI rejected the API key or this backend is not whitelisted yet.';
+        } else {
+          lastError = data?.body?.message || data?.body?.reason || lastError;
+        }
       }
       setStep('GMGN', 'fail');
       return { __error: lastError, signals: normalizeGmgnSignals(null), raw: data };
