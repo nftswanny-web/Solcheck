@@ -1,6 +1,15 @@
 const fetch = require('node-fetch');
 const { applyCors, rateLimit } = require('./_utils');
 
+const ALLOWED_PATHS = [
+  /^\/pair\/all$/i,
+  /^\/pools\?page=\d+&page_size=\d+&query=[^&]+$/i,
+];
+
+function isAllowedPath(path) {
+  return ALLOWED_PATHS.some((pattern) => pattern.test(path));
+}
+
 module.exports = async (req, res) => {
   applyCors(req, res);
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -9,6 +18,12 @@ module.exports = async (req, res) => {
 
   try {
     const path = req.query.path || '/pools';
+    if (!isAllowedPath(path)) {
+      return res.status(403).json({
+        error: 'path_not_allowed',
+        message: 'This Meteora route is not allowed.',
+      });
+    }
     const baseUrl = path.startsWith('/pair/') ? 'https://dlmm-api.meteora.ag' : 'https://dlmm.datapi.meteora.ag';
     const fullUrl = baseUrl + path;
 
