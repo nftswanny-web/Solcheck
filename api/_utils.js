@@ -1,4 +1,5 @@
 const rateBuckets = new Map();
+const responseCache = new Map();
 
 function getAllowedOrigins() {
   const configured = (process.env.PUBLIC_APP_ORIGIN || process.env.APP_ORIGIN || '')
@@ -54,7 +55,27 @@ function rateLimit(req, res, key, windowMs, maxHits) {
   return false;
 }
 
+function getCachedValue(key) {
+  const entry = responseCache.get(key);
+  const now = Date.now();
+  if (!entry) return null;
+  if (entry.expiresAt <= now) {
+    responseCache.delete(key);
+    return null;
+  }
+  return entry.value;
+}
+
+function setCachedValue(key, value, ttlMs) {
+  responseCache.set(key, {
+    value,
+    expiresAt: Date.now() + ttlMs,
+  });
+}
+
 module.exports = {
   applyCors,
   rateLimit,
+  getCachedValue,
+  setCachedValue,
 };
