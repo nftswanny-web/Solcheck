@@ -30,27 +30,20 @@ module.exports = async (req, res) => {
     const baseUrl = process.env.GMGN_BASE_URL || 'https://openapi.gmgn.ai';
     const timestamp = unixSeconds();
     const clientId = makeClientId();
-    const fullUrl = `${baseUrl}/v1/token/info?timestamp=${timestamp}&client_id=${encodeURIComponent(clientId)}`;
+    const fullUrl = `${baseUrl}/v1/token/info?chain=sol&address=${encodeURIComponent(mint)}&timestamp=${timestamp}&client_id=${encodeURIComponent(clientId)}`;
 
     const headers = {
       'User-Agent': 'DLMMChecker/1.0 (+https://dlmmchecker.vercel.app)',
       'Accept': 'application/json, text/plain, */*',
-      'Content-Type': 'application/json',
       'X-APIKEY': apiKey || undefined,
       'x-api-key': apiKey || undefined,
       'x-route-key': routeKey || undefined,
       'Authorization': apiKey ? `Bearer ${apiKey}` : undefined,
     };
 
-    const body = {
-      chain: 'sol',
-      address: mint,
-    };
-
     const response = await fetch(fullUrl, {
-      method: 'POST',
+      method: 'GET',
       headers,
-      body: JSON.stringify(body),
       timeout: 25000,
       redirect: 'follow',
     });
@@ -75,6 +68,7 @@ module.exports = async (req, res) => {
             host: baseUrl,
             endpoint: '/v1/token/info',
             authMode: 'standard',
+            method: 'GET',
             hasApiKey: Boolean(apiKey),
             hasRouteKey: Boolean(routeKey),
           },
@@ -88,6 +82,7 @@ module.exports = async (req, res) => {
           host: baseUrl,
           endpoint: '/v1/token/info',
           authMode: 'standard',
+          method: 'GET',
         },
       });
     } catch (e) {
@@ -106,6 +101,7 @@ module.exports = async (req, res) => {
             host: baseUrl,
             endpoint: '/v1/token/info',
             authMode: 'standard',
+            method: 'GET',
             hasApiKey: Boolean(apiKey),
             hasRouteKey: Boolean(routeKey),
           },
@@ -123,6 +119,7 @@ module.exports = async (req, res) => {
           host: baseUrl,
           endpoint: '/v1/token/info',
           authMode: 'standard',
+          method: 'GET',
           hasApiKey: Boolean(apiKey),
           hasRouteKey: Boolean(routeKey),
         },
