@@ -409,6 +409,8 @@ const DEFAULT_SETTINGS = {
   gmgn_snipers_count: { g: 5,    y: 15,   dir: 'asc', label: 'GMGN Snipers Count' },
   gmgn_insiders_pct:  { g: 5,    y: 12,   dir: 'asc', label: 'GMGN Insiders %' },
   gmgn_bundled_pct:   { g: 5,    y: 12,   dir: 'asc', label: 'GMGN Bundled Wallets %' },
+  gmgn_phishing_pct:  { g: 2,    y: 8,    dir: 'asc', label: 'GMGN Phishing %' },
+  gmgn_total_fees:    { g: 1,    y: 0.2,  dir: 'desc', label: 'GMGN Total Fees' },
   total_fees_sol:     { g: 100,  y: 20,   dir: 'desc', label: 'Fees Paid (SOL)' },
 };
 
@@ -843,6 +845,32 @@ function normalizeGmgnSignals(raw) {
     'bundle_percent',
     'bundle_rate',
   ]);
+  const phishingRatio = findMetric(payloads, [
+    'data.link.phishing',
+    'link.phishing',
+    'data.security.phishing_ratio',
+    'security.phishing_ratio',
+    'data.security.phishing_rate',
+    'security.phishing_rate',
+    'data.stat.phishing_rate',
+    'stat.phishing_rate',
+    'data.stat.phishing_percentage',
+    'stat.phishing_percentage',
+    'data.phishing_rate',
+    'phishing_rate',
+    'data.phishing_percentage',
+    'phishing_percentage',
+  ]);
+  const totalFees = findMetric(payloads, [
+    'data.total_fee',
+    'total_fee',
+    'data.trade_fee',
+    'trade_fee',
+    'data.pool.total_fee',
+    'pool.total_fee',
+    'data.pool.trade_fee',
+    'pool.trade_fee',
+  ]);
 
   return {
     snipers: {
@@ -859,6 +887,14 @@ function normalizeGmgnSignals(raw) {
       count: num(bundledCount.value),
       holdingRatio: pct(bundledRatio.value),
       sourceField: bundledCount.sourceField || bundledRatio.sourceField || null,
+    },
+    phishing: {
+      value: pct(phishingRatio.value),
+      sourceField: phishingRatio.sourceField || null,
+    },
+    totalFees: {
+      value: num(totalFees.value),
+      sourceField: totalFees.sourceField || null,
     },
   };
 }
@@ -1261,6 +1297,8 @@ function renderResults(mint, rc, jup, gmgn, met) {
   const gmgnInsidersRatio = pct(gmgnSignals?.insiders?.holdingRatio);
   const gmgnBundledCount = num(gmgnSignals?.bundledWallets?.count);
   const gmgnBundledRatio = pct(gmgnSignals?.bundledWallets?.holdingRatio);
+  const gmgnPhishing = pct(gmgnSignals?.phishing?.value);
+  const gmgnTotalFees = num(gmgnSignals?.totalFees?.value);
   const devH = pct(
     jup?.audit?.devBalancePercentage,
     jup?.audit?.devWalletPercentage,
@@ -1374,6 +1412,44 @@ function renderResults(mint, rc, jup, gmgn, met) {
 
   h += '</div></div>';
 
+  h += '<div class="section"><div class="stitle"><span class="icon">GM</span> GMGN Signals</div><div class="grid">';
+  h += card(
+    'Snipers',
+    gmgnSnipersCount,
+    gmgnSnipersCount != null ? String(Math.round(gmgnSnipersCount)) : 'N/A',
+    'gmgn_snipers_count',
+    gmgnSnipersRatio != null ? `Holding ${gmgnSnipersRatio.toFixed(2)}%` : (gmgnSignals?.snipers?.sourceField ? `Source: ${gmgnSignals.snipers.sourceField}` : 'GMGN')
+  );
+  h += card(
+    'Insiders',
+    gmgnInsidersRatio,
+    gmgnInsidersRatio != null ? gmgnInsidersRatio.toFixed(2)+'%' : 'N/A',
+    'gmgn_insiders_pct',
+    gmgnInsidersCount != null ? `${Math.round(gmgnInsidersCount)} wallets` : (gmgnSignals?.insiders?.sourceField ? `Source: ${gmgnSignals.insiders.sourceField}` : 'GMGN')
+  );
+  h += card(
+    'Bundled Wallets',
+    gmgnBundledRatio,
+    gmgnBundledRatio != null ? gmgnBundledRatio.toFixed(2)+'%' : 'N/A',
+    'gmgn_bundled_pct',
+    gmgnBundledCount != null ? `${Math.round(gmgnBundledCount)} wallets` : (gmgnSignals?.bundledWallets?.sourceField ? `Source: ${gmgnSignals.bundledWallets.sourceField}` : 'GMGN')
+  );
+  h += card(
+    'Phishing',
+    gmgnPhishing,
+    gmgnPhishing != null ? gmgnPhishing.toFixed(2)+'%' : 'N/A',
+    'gmgn_phishing_pct',
+    gmgnSignals?.phishing?.sourceField ? `Source: ${gmgnSignals.phishing.sourceField}` : 'GMGN'
+  );
+  h += card(
+    'Total Fees',
+    gmgnTotalFees,
+    gmgnTotalFees != null ? fmSol(gmgnTotalFees, 4) : 'N/A',
+    'gmgn_total_fees',
+    gmgnSignals?.totalFees?.sourceField ? `Source: ${gmgnSignals.totalFees.sourceField}` : 'GMGN'
+  );
+  h += '</div></div>';
+
   if (rc?.__error) {
     h += `<div class="section"><div class="card red"><div class="label">RugCheck Status</div><div class="value" style="font-size:13px;color:inherit">${esc(rc.__error)}</div></div></div>`;
   } else if (rc && !rc?.tokenMeta && !(rc?.risks?.length) && rcScore == null) {
@@ -1408,30 +1484,6 @@ function renderResults(mint, rc, jup, gmgn, met) {
     + card('Snipers H.', snipersH, snipersH != null ? snipersH.toFixed(2)+'%' : 'N/A', 'phishing_pct')
     + '</div></div>';
   h += hiddenHolderSignals;
-
-  h += '<div class="section"><div class="stitle"><span class="icon">GM</span> GMGN Signals</div><div class="grid">';
-  h += card(
-    'Snipers',
-    gmgnSnipersCount,
-    gmgnSnipersCount != null ? String(Math.round(gmgnSnipersCount)) : 'N/A',
-    'gmgn_snipers_count',
-    gmgnSnipersRatio != null ? `Holding ${gmgnSnipersRatio.toFixed(2)}%` : (gmgnSignals?.snipers?.sourceField ? `Source: ${gmgnSignals.snipers.sourceField}` : 'GMGN')
-  );
-  h += card(
-    'Insiders',
-    gmgnInsidersRatio,
-    gmgnInsidersRatio != null ? gmgnInsidersRatio.toFixed(2)+'%' : 'N/A',
-    'gmgn_insiders_pct',
-    gmgnInsidersCount != null ? `${Math.round(gmgnInsidersCount)} wallets` : (gmgnSignals?.insiders?.sourceField ? `Source: ${gmgnSignals.insiders.sourceField}` : 'GMGN')
-  );
-  h += card(
-    'Bundled Wallets',
-    gmgnBundledRatio,
-    gmgnBundledRatio != null ? gmgnBundledRatio.toFixed(2)+'%' : 'N/A',
-    'gmgn_bundled_pct',
-    gmgnBundledCount != null ? `${Math.round(gmgnBundledCount)} wallets` : (gmgnSignals?.bundledWallets?.sourceField ? `Source: ${gmgnSignals.bundledWallets.sourceField}` : 'GMGN')
-  );
-  h += '</div></div>';
 
   if (gmgn?.__error) {
     h += `<div class="section"><div class="card"><div class="label">GMGN Status</div><div class="value" style="font-size:13px;color:var(--t)">${esc(gmgn.__error)}</div></div></div>`;
