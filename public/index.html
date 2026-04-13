@@ -406,6 +406,9 @@ const DEFAULT_SETTINGS = {
   top_holders_pct:    { g: 15,   y: 30,   dir: 'asc', label: 'Top Holders %' },
   bundlers_pct:       { g: 5,    y: 15,   dir: 'asc', label: 'Developer Holdings %' },
   phishing_pct:       { g: 2,    y: 5,    dir: 'asc', label: 'Snipers %' },
+  gmgn_snipers_count: { g: 5,    y: 15,   dir: 'asc', label: 'GMGN Snipers Count' },
+  gmgn_insiders_pct:  { g: 5,    y: 12,   dir: 'asc', label: 'GMGN Insiders %' },
+  gmgn_bundled_pct:   { g: 5,    y: 12,   dir: 'asc', label: 'GMGN Bundled Wallets %' },
   total_fees_sol:     { g: 100,  y: 20,   dir: 'desc', label: 'Fees Paid (SOL)' },
 };
 
@@ -758,6 +761,146 @@ async function fetchJupiter(mint) {
   } catch(e) { setStep('Jupiter', 'fail'); return null; }
 }
 
+function getByPath(obj, path) {
+  if (!obj || !path) return undefined;
+  return String(path).split('.').reduce((acc, key) => (acc == null ? undefined : acc[key]), obj);
+}
+
+function findMetric(payloads, candidates) {
+  for (const payload of payloads) {
+    if (!payload || typeof payload !== 'object') continue;
+    for (const path of candidates) {
+      const value = getByPath(payload, path);
+      if (value == null || value === '') continue;
+      return { value, sourceField: path };
+    }
+  }
+  return { value: null, sourceField: null };
+}
+
+function normalizeGmgnSignals(raw) {
+  const payloads = [
+    raw,
+    raw?.data,
+    raw?.data?.data,
+    raw?.token,
+    raw?.data?.token,
+  ].filter(Boolean);
+
+  const snipersCount = findMetric(payloads, [
+    'sniper_count',
+    'sniperCount',
+    'snipers',
+    'snipers_count',
+    'data.sniper_count',
+  ]);
+  const snipersRatio = findMetric(payloads, [
+    'sniper_hold_rate',
+    'sniper_amount_rate',
+    'sniper_ratio',
+    'snipers_percentage',
+    'sniper_percentage',
+    'sniperPercent',
+  ]);
+  const insidersCount = findMetric(payloads, [
+    'suspected_insider_count',
+    'insider_count',
+    'insiders_count',
+    'insiderCount',
+  ]);
+  const insidersRatio = findMetric(payloads, [
+    'suspected_insider_hold_rate',
+    'insider_hold_rate',
+    'insider_amount_rate',
+    'insiders_percentage',
+    'insider_percentage',
+    'insiderPercent',
+  ]);
+  const bundledCount = findMetric(payloads, [
+    'bundler_count',
+    'bundled_wallet_count',
+    'bundled_count',
+    'bundle_count',
+    'bundlerCount',
+  ]);
+  const bundledRatio = findMetric(payloads, [
+    'bundler_trader_amount_rate',
+    'bundled_wallet_hold_rate',
+    'bundled_wallet_percentage',
+    'bundled_percentage',
+    'bundle_percent',
+    'bundle_rate',
+  ]);
+
+  return {
+    snipers: {
+      count: num(snipersCount.value),
+      holdingRatio: pct(snipersRatio.value),
+      sourceField: snipersCount.sourceField || snipersRatio.sourceField || null,
+    },
+    insiders: {
+      count: num(insidersCount.value),
+      holdingRatio: pct(insidersRatio.value),
+      sourceField: insidersCount.sourceField || insidersRatio.sourceField || null,
+    },
+    bundledWallets: {
+      count: num(bundledCount.value),
+      holdingRatio: pct(bundledRatio.value),
+      sourceField: bundledCount.sourceField || bundledRatio.sourceField || null,
+    },
+  };
+}
+
+async function fetchGMGN(mint) {
+  setStep('GMGN', 'loading');
+  try {
+    const sources = [
+      '/api/gmgn?path=' + encodeURIComponent('/api/v1/token_info/sol/' + mint),
+      '/api/gmgn?path=' + encodeURIComponent('/defi/quotation/v1/tokens/sol/' + mint),
+    ];
+
+    let lastError = 'No GMGN response';
+    for (const url of sources) {
+      try {
+        const r = await fetch(url, { signal: AbortSignal.timeout(20000) });
+        const data = await r.json().catch(() => null);
+        if (!r.ok) {
+          lastError = data?.message || data?.error || ('HTTP ' + r.status);
+          continue;
+        }
+        const signals = normalizeGmgnSignals(data);
+        const hasSignal = [
+          signals?.snipers?.count,
+          signals?.snipers?.holdingRatio,
+          signals?.insiders?.count,
+          signals?.insiders?.holdingRatio,
+          signals?.bundledWallets?.count,
+          signals?.bundledWallets?.holdingRatio,
+        ].some((value) => value != null);
+
+        if (hasSignal) {
+          setStep('GMGN', 'done');
+          return {
+            raw: data,
+            signals,
+            source: url.includes('/api/v1/token_info/') ? 'token_info' : 'quotation',
+          };
+        }
+
+        lastError = 'GMGN returned no sniper/insider/bundle fields';
+      } catch (e) {
+        lastError = e.message || 'GMGN request failed';
+      }
+    }
+
+    setStep('GMGN', 'fail');
+    return { __error: lastError, signals: normalizeGmgnSignals(null) };
+  } catch (e) {
+    setStep('GMGN', 'fail');
+    return { __error: e.message || 'GMGN request failed', signals: normalizeGmgnSignals(null) };
+  }
+}
+
 // Helper: call our proxies
 async function meteoraProxy(path) {
   const url = '/api/meteora?path='+encodeURIComponent(path || '/pools');
@@ -807,17 +950,18 @@ async function analyze(forcedMint) {
   $('goBtn').disabled = true;
   $('results').innerHTML = '';
   renderSidebarMeteora([]);
-  initProgress(['RugCheck', 'Jupiter', 'Meteora']);
+  initProgress(['RugCheck', 'Jupiter', 'GMGN', 'Meteora']);
 
   // Fetch all in parallel
-  const [rugcheck, jupiter, meteora] = await Promise.all([
+  const [rugcheck, jupiter, gmgn, meteora] = await Promise.all([
     fetchRugCheck(mint),
     fetchJupiter(mint),
+    fetchGMGN(mint),
     fetchMeteora(mint),
   ]);
 
   // Build results
-  renderResults(mint, rugcheck, jupiter, meteora);
+  renderResults(mint, rugcheck, jupiter, gmgn, meteora);
   renderSidebarMeteora(meteora);
   pushHistory({
     mint,
@@ -1016,7 +1160,7 @@ function renderMeteoraRail(met) {
   return h;
 }
 
-function renderResults(mint, rc, jup, met) {
+function renderResults(mint, rc, jup, gmgn, met) {
   let h = '';
   const meteoraRail = renderMeteoraRail(met);
 
@@ -1098,6 +1242,13 @@ function renderResults(mint, rc, jup, met) {
     (Array.isArray(met) ? met : []).reduce((sum, p) => sum + (num(p?.liquidity, p?.tvl) || 0), 0)
   );
   const topH = pct(jup?.audit?.topHoldersPercentage, jup?.holderMetrics?.top10Percentage);
+  const gmgnSignals = gmgn?.signals || normalizeGmgnSignals(null);
+  const gmgnSnipersCount = num(gmgnSignals?.snipers?.count);
+  const gmgnSnipersRatio = pct(gmgnSignals?.snipers?.holdingRatio);
+  const gmgnInsidersCount = num(gmgnSignals?.insiders?.count);
+  const gmgnInsidersRatio = pct(gmgnSignals?.insiders?.holdingRatio);
+  const gmgnBundledCount = num(gmgnSignals?.bundledWallets?.count);
+  const gmgnBundledRatio = pct(gmgnSignals?.bundledWallets?.holdingRatio);
   const devH = pct(
     jup?.audit?.devBalancePercentage,
     jup?.audit?.devWalletPercentage,
@@ -1245,6 +1396,34 @@ function renderResults(mint, rc, jup, met) {
     + card('Snipers H.', snipersH, snipersH != null ? snipersH.toFixed(2)+'%' : 'N/A', 'phishing_pct')
     + '</div></div>';
   h += hiddenHolderSignals;
+
+  h += '<div class="section"><div class="stitle"><span class="icon">GM</span> GMGN Signals</div><div class="grid">';
+  h += card(
+    'Snipers',
+    gmgnSnipersCount,
+    gmgnSnipersCount != null ? String(Math.round(gmgnSnipersCount)) : 'N/A',
+    'gmgn_snipers_count',
+    gmgnSnipersRatio != null ? `Holding ${gmgnSnipersRatio.toFixed(2)}%` : (gmgnSignals?.snipers?.sourceField ? `Source: ${gmgnSignals.snipers.sourceField}` : 'GMGN')
+  );
+  h += card(
+    'Insiders',
+    gmgnInsidersRatio,
+    gmgnInsidersRatio != null ? gmgnInsidersRatio.toFixed(2)+'%' : 'N/A',
+    'gmgn_insiders_pct',
+    gmgnInsidersCount != null ? `${Math.round(gmgnInsidersCount)} wallets` : (gmgnSignals?.insiders?.sourceField ? `Source: ${gmgnSignals.insiders.sourceField}` : 'GMGN')
+  );
+  h += card(
+    'Bundled Wallets',
+    gmgnBundledRatio,
+    gmgnBundledRatio != null ? gmgnBundledRatio.toFixed(2)+'%' : 'N/A',
+    'gmgn_bundled_pct',
+    gmgnBundledCount != null ? `${Math.round(gmgnBundledCount)} wallets` : (gmgnSignals?.bundledWallets?.sourceField ? `Source: ${gmgnSignals.bundledWallets.sourceField}` : 'GMGN')
+  );
+  h += '</div></div>';
+
+  if (gmgn?.__error) {
+    h += `<div class="section"><div class="card"><div class="label">GMGN Status</div><div class="value" style="font-size:13px;color:var(--t)">${esc(gmgn.__error)}</div></div></div>`;
+  }
 
   if (geckoSecurityUrl) {
     h += '<div class="section"><div class="stitle"><span class="icon">🦎</span> GeckoTerminal Security Card</div>';
