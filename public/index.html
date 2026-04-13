@@ -163,6 +163,18 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-se
 .card.green{background:var(--gbg);border-color:var(--gbd)}.card.green .value{color:var(--g)}
 .card.yellow{background:var(--ybg);border-color:var(--ybd)}.card.yellow .value{color:var(--y)}
 .card.red{background:var(--rbg);border-color:var(--rbd)}.card.red .value{color:var(--r)}
+.gmgn-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.gmgn-mini{border-radius:12px;padding:10px 12px;border:1px solid var(--brd);background:var(--s1);min-height:84px;display:flex;flex-direction:column;justify-content:center}
+.gmgn-mini .label{font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.gmgn-mini .value{font-size:16px;font-weight:800;font-family:'JetBrains Mono',monospace;line-height:1.1}
+.gmgn-mini .sub{font-size:9px;color:var(--t2);margin-top:5px}
+.gmgn-mini.green{background:var(--gbg);border-color:var(--gbd)}.gmgn-mini.green .value{color:var(--g)}
+.gmgn-mini.yellow{background:var(--ybg);border-color:var(--ybd)}.gmgn-mini.yellow .value{color:var(--y)}
+.gmgn-mini.red{background:var(--rbg);border-color:var(--rbd)}.gmgn-mini.red .value{color:var(--r)}
+.gmgn-mini.flag .value{font-family:'DM Sans',system-ui,sans-serif}
+.gmgn-mini.flag.good{border-color:var(--gbd);background:var(--gbg)}.gmgn-mini.flag.good .value{color:var(--g)}
+.gmgn-mini.flag.bad{border-color:var(--rbd);background:var(--rbg)}.gmgn-mini.flag.bad .value{color:var(--r)}
+.gmgn-mini.flag.na .value{color:var(--t)}
 
 /* Token header */
 .token-hd{display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:18px;background:var(--s1);border:1px solid var(--brd);border-radius:12px;padding:18px 20px;margin-bottom:16px}
@@ -1195,6 +1207,25 @@ function card(label, value, displayValue, key, sub) {
   </div>`;
 }
 
+function miniMetric(label, value, displayValue, key, sub) {
+  const color = key ? getColor(key, value) : '';
+  return `<div class="gmgn-mini ${color}">
+    <div class="label">${label}</div>
+    <div class="value">${displayValue}</div>
+    ${sub ? '<div class="sub">'+sub+'</div>' : ''}
+  </div>`;
+}
+
+function miniFlag(label, state, sub) {
+  const cls = state == null ? 'na' : state ? 'good' : 'bad';
+  const value = state == null ? 'N/A' : state ? 'Yes' : 'No';
+  return `<div class="gmgn-mini flag ${cls}">
+    <div class="label">${label}</div>
+    <div class="value">${value}</div>
+    ${sub ? '<div class="sub">'+sub+'</div>' : ''}
+  </div>`;
+}
+
 function renderMeteoraRail(met) {
   const pools = Array.isArray(met)
     ? [...met].sort((a, b) => (num(b?.liquidity, b?.tvl) || 0) - (num(a?.liquidity, a?.tvl) || 0)).slice(0, 4)
@@ -1362,6 +1393,7 @@ function renderResults(mint, rc, jup, gmgn, met) {
   );
   const topH = pct(jup?.audit?.topHoldersPercentage, jup?.holderMetrics?.top10Percentage);
   const gmgnSignals = gmgn?.signals || normalizeGmgnSignals(null);
+  const gmgnData = gmgn?.raw?.data?.data || gmgn?.raw?.data || gmgn?.raw || null;
   const gmgnSnipersCount = num(gmgnSignals?.snipers?.count);
   const gmgnSnipersRatio = pct(gmgnSignals?.snipers?.holdingRatio);
   const gmgnInsidersCount = num(gmgnSignals?.insiders?.count);
@@ -1371,6 +1403,40 @@ function renderResults(mint, rc, jup, gmgn, met) {
   const gmgnPhishing = pct(gmgnSignals?.phishing?.value);
   const gmgnTop10Holders = pct(gmgnSignals?.top10Holders?.value);
   const gmgnTotalFees = num(gmgnSignals?.totalFees?.value);
+  const gmgnHolders = num(gmgnData?.holder_count, gmgnData?.stat?.holder_count, jup?.holderCount, jup?.holders);
+  const gmgnDevHold = pct(
+    gmgnData?.stat?.dev_team_hold_rate,
+    gmgnData?.stat?.creator_hold_rate,
+    gmgnData?.dev?.dev_team_hold_rate,
+    gmgnData?.dev?.creator_hold_rate,
+    gmgnData?.dev_team_hold_rate,
+    gmgnData?.creator_hold_rate
+  );
+  const gmgnDexPaid = num(
+    gmgnData?.dev?.dexscr_boost_fee,
+    gmgnData?.dev?.dexscr_ad,
+    gmgnData?.dexscr_boost_fee
+  );
+  const blacklistDisabled = (() => {
+    const rawValue = num(
+      getByPath(gmgnData, 'security.blacklist_disabled'),
+      getByPath(gmgnData, 'security.is_blacklist_disabled'),
+      getByPath(gmgnData, 'token.blacklist_disabled'),
+      getByPath(gmgnData, 'token.is_blacklist_disabled')
+    );
+    if (rawValue == null) return null;
+    return rawValue === 1;
+  })();
+  const burntRatio = pct(
+    getByPath(gmgnData, 'pool.burn_ratio'),
+    getByPath(gmgnData, 'pool.burned_ratio'),
+    getByPath(gmgnData, 'pool.burn_percent'),
+    getByPath(gmgnData, 'pool.burned_percentage'),
+    getByPath(gmgnData, 'burn_ratio'),
+    getByPath(gmgnData, 'burned_ratio'),
+    getByPath(gmgnData, 'burn_percent'),
+    getByPath(gmgnData, 'burned_percentage')
+  );
   const devH = pct(
     jup?.audit?.devBalancePercentage,
     jup?.audit?.devWalletPercentage,
@@ -1499,48 +1565,84 @@ function renderResults(mint, rc, jup, gmgn, met) {
 
   h += '</div></div>';
 
-  h += '<div class="section"><div class="stitle">GMGN Signals</div><div class="grid">';
-  h += card(
-    'Snipers',
-    gmgnSnipersCount,
-    gmgnSnipersCount != null ? String(Math.round(gmgnSnipersCount)) : 'N/A',
-    'gmgn_snipers_count',
-    gmgnSnipersRatio != null ? `Holding ${gmgnSnipersRatio.toFixed(2)}%` : ''
+  h += '<div class="section"><div class="stitle">GMGN Signals</div><div class="gmgn-grid">';
+  h += miniMetric(
+    'Top 10',
+    gmgnTop10Holders,
+    gmgnTop10Holders != null ? gmgnTop10Holders.toFixed(2)+'%' : 'N/A',
+    'gmgn_top10_pct',
+    ''
   );
-  h += card(
+  h += miniMetric(
+    'Dev',
+    gmgnDevHold,
+    gmgnDevHold != null ? gmgnDevHold.toFixed(2)+'%' : 'N/A',
+    gmgnDevHold != null ? 'bundlers_pct' : '',
+    gmgnData?.dev?.creator_address ? sh(gmgnData.dev.creator_address) : ''
+  );
+  h += miniMetric(
+    'Holders',
+    gmgnHolders,
+    gmgnHolders != null ? gmgnHolders.toLocaleString() : 'N/A',
+    '',
+    ''
+  );
+  h += miniMetric(
+    'Snipers',
+    gmgnSnipersRatio != null ? gmgnSnipersRatio : gmgnSnipersCount,
+    gmgnSnipersRatio != null ? gmgnSnipersRatio.toFixed(2)+'%' : (gmgnSnipersCount != null ? String(Math.round(gmgnSnipersCount)) : 'N/A'),
+    gmgnSnipersRatio != null ? 'phishing_pct' : '',
+    gmgnSnipersCount != null ? `${Math.round(gmgnSnipersCount)} wallets` : ''
+  );
+  h += miniMetric(
     'Insiders',
     gmgnInsidersRatio,
     gmgnInsidersRatio != null ? gmgnInsidersRatio.toFixed(2)+'%' : 'N/A',
     'gmgn_insiders_pct',
     gmgnInsidersCount != null ? `${Math.round(gmgnInsidersCount)} wallets` : ''
   );
-  h += card(
-    'Bundled Wallets',
-    gmgnBundledRatio,
-    gmgnBundledRatio != null ? gmgnBundledRatio.toFixed(2)+'%' : 'N/A',
-    'gmgn_bundled_pct',
-    gmgnBundledCount != null ? `${Math.round(gmgnBundledCount)} wallets` : ''
-  );
-  h += card(
-    'Top 10 Holders',
-    gmgnTop10Holders,
-    gmgnTop10Holders != null ? gmgnTop10Holders.toFixed(2)+'%' : 'N/A',
-    'gmgn_top10_pct',
-    ''
-  );
-  h += card(
+  h += miniMetric(
     'Phishing',
     gmgnPhishing,
     gmgnPhishing != null ? gmgnPhishing.toFixed(2)+'%' : 'N/A',
     'gmgn_phishing_pct',
     ''
   );
-  h += card(
-    'Total Fees',
-    gmgnTotalFees,
-    gmgnTotalFees != null ? fmSol(gmgnTotalFees, 4) : 'N/A',
-    'gmgn_total_fees',
-    ''
+  h += miniMetric(
+    'Bundler',
+    gmgnBundledRatio,
+    gmgnBundledRatio != null ? gmgnBundledRatio.toFixed(2)+'%' : 'N/A',
+    'gmgn_bundled_pct',
+    gmgnBundledCount != null ? `${Math.round(gmgnBundledCount)} wallets` : ''
+  );
+  h += miniMetric(
+    'Dex Paid',
+    gmgnDexPaid,
+    gmgnDexPaid != null ? fm(gmgnDexPaid, 0) : 'N/A',
+    '',
+    gmgnTotalFees != null ? `Fees ${fmSol(gmgnTotalFees, 2)}` : ''
+  );
+  h += miniFlag(
+    'No Mint',
+    mintDisabled == null ? null : mintDisabled === true,
+    mintDisabled == null ? '' : 'Authority disabled'
+  );
+  h += miniFlag(
+    'No Freeze',
+    freezeDisabled == null ? null : freezeDisabled === true,
+    freezeDisabled == null ? '' : 'Authority disabled'
+  );
+  h += miniFlag(
+    'No Blacklist',
+    blacklistDisabled,
+    blacklistDisabled == null ? 'Not exposed by API' : ''
+  );
+  h += miniMetric(
+    'Burnt',
+    burntRatio,
+    burntRatio != null ? burntRatio.toFixed(0)+'%' : 'N/A',
+    burntRatio != null ? 'gmgn_top10_pct' : '',
+    burntRatio == null ? 'Not exposed by API' : ''
   );
   h += '</div></div>';
 
