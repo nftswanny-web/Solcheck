@@ -58,6 +58,9 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-se
 [data-theme="light"] .history-item,
 [data-theme="light"] .support-wallet{background:#f8fcfc;border-color:#d8eaeb}
 [data-theme="light"] .token-pill{background:#f4fbf7;border-color:#d8eaeb;color:#0e2233}
+[data-theme="light"] .hero-stat{background:
+  radial-gradient(circle at top left, rgba(49,166,117,.12), transparent 48%),
+  linear-gradient(180deg,#fbfffd,#f1fbf6);border-color:#cfe7da;box-shadow:inset 0 1px 0 rgba(255,255,255,.92)}
 [data-theme="light"] .token-link,
 [data-theme="light"] .pool-link,
 [data-theme="light"] .chart-link,
@@ -184,8 +187,15 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-se
 .token-hd .name{font-size:18px;font-weight:800}
 .token-hd .sym{font-size:12px;color:var(--ac2);font-weight:600}
 .token-hd .addr{font-size:10px;color:var(--t2);font-family:'JetBrains Mono',monospace;word-break:break-all}
-.token-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-.token-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid var(--brd);background:rgba(124,92,252,.08);color:var(--t);font-size:11px;font-weight:700}
+.token-stats{display:grid;grid-template-columns:repeat(2,minmax(0,180px));gap:10px;margin-top:10px}
+.hero-stat{display:flex;flex-direction:column;justify-content:center;gap:5px;min-height:84px;padding:14px 16px;border-radius:18px;border:1px solid rgba(116,213,172,.32);background:
+  radial-gradient(circle at top left, rgba(116,213,172,.12), transparent 48%),
+  linear-gradient(180deg, rgba(10,20,18,.94), rgba(7,14,12,.92));box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+.hero-stat .k{font-size:11px;color:var(--t2);text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+.hero-stat .v{font-size:28px;line-height:1;font-weight:900;letter-spacing:-.03em}
+.hero-stat .sub{font-size:11px;color:var(--t2)}
+.token-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.token-pill{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;border:1px solid var(--brd);background:rgba(124,92,252,.08);color:var(--t);font-size:11px;font-weight:700}
 .token-pill .k{color:var(--t2);font-weight:600}
 .token-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .token-link{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid var(--brd);background:var(--s2);color:var(--ac2);text-decoration:none;font-size:11px;font-weight:700}
@@ -847,8 +857,16 @@ function normalizeGmgnSignals(raw) {
     'bundle_rate',
   ]);
   const phishingRatio = findMetric(payloads, [
+    'data.stat.top_entrapment_trader_percentage',
+    'stat.top_entrapment_trader_percentage',
     'data.portfolio.phishing',
+    'data.portfolio.phishing.value',
+    'data.portfolio.phishing.rate',
+    'data.portfolio.phishing.percentage',
     'portfolio.phishing',
+    'portfolio.phishing.value',
+    'portfolio.phishing.rate',
+    'portfolio.phishing.percentage',
     'data.portfolio.phishing_ratio',
     'portfolio.phishing_ratio',
     'data.portfolio.phishing_rate',
@@ -871,6 +889,28 @@ function normalizeGmgnSignals(raw) {
     'phishing_percentage',
   ]);
   const top10Holders = findMetric(payloads, [
+    'data.stat.top_10_holder_rate',
+    'stat.top_10_holder_rate',
+    'data.dev.top_10_holder_rate',
+    'dev.top_10_holder_rate',
+    'data.portfolio.top_10_holder_percentage',
+    'portfolio.top_10_holder_percentage',
+    'data.portfolio.top10_holder_percentage',
+    'portfolio.top10_holder_percentage',
+    'data.portfolio.top_10_holders_percentage',
+    'portfolio.top_10_holders_percentage',
+    'data.portfolio.top10_holders_percentage',
+    'portfolio.top10_holders_percentage',
+    'data.portfolio.holder_top10_percentage',
+    'portfolio.holder_top10_percentage',
+    'data.portfolio.holder_top_10_percentage',
+    'portfolio.holder_top_10_percentage',
+    'data.portfolio.top_10_holder_rate',
+    'portfolio.top_10_holder_rate',
+    'data.portfolio.top10_holder_rate',
+    'portfolio.top10_holder_rate',
+    'data.portfolio.holder_top10_rate',
+    'portfolio.holder_top10_rate',
     'data.stat.top_10_holder_percentage',
     'stat.top_10_holder_percentage',
     'data.stat.top10_holder_percentage',
@@ -883,6 +923,10 @@ function normalizeGmgnSignals(raw) {
     'top_10_holder_percentage',
     'data.top10_holder_percentage',
     'top10_holder_percentage',
+    'data.top_holders_percentage',
+    'top_holders_percentage',
+    'data.top_holder_percentage',
+    'top_holder_percentage',
   ]);
   const totalFees = findMetric(payloads, [
     'data.total_fee',
@@ -1385,9 +1429,19 @@ function renderResults(mint, rc, jup, gmgn, met) {
             <div class="addr">${esc(mint)}</div>
           </div>
         </div>
+        <div class="token-stats">
+          <div class="hero-stat">
+            <div class="k">Market Cap</div>
+            <div class="v">${esc(marketCap != null ? fm(marketCap) : 'N/A')}</div>
+            <div class="sub">Current market snapshot</div>
+          </div>
+          <div class="hero-stat">
+            <div class="k">Liquidity</div>
+            <div class="v">${esc(totalLiquidity != null ? fm(totalLiquidity) : 'N/A')}</div>
+            <div class="sub">${esc(Array.isArray(met) && met.length ? `${met.length} pools tracked` : 'Live pool liquidity')}</div>
+          </div>
+        </div>
         <div class="token-meta">
-          <div class="token-pill"><span class="k">MC</span><span>${esc(marketCap != null ? fm(marketCap) : 'N/A')}</span></div>
-          <div class="token-pill"><span class="k">Liq</span><span>${esc(totalLiquidity != null ? fm(totalLiquidity) : 'N/A')}</span></div>
           <div class="token-pill"><span class="k">Age</span><span>${esc(ageDisplay(tokenAgeHours))}</span></div>
         </div>
         <div class="token-links">
