@@ -1,5 +1,5 @@
 const fetch = require('node-fetch');
-const { applyCors, rateLimit } = require('./_utils');
+const { applyCors, rateLimit, getCachedValue, setCachedValue } = require('./_utils');
 
 function extractJupiterTokenFromHtml(html, mint) {
   const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">\s*([\s\S]*?)<\/script>/i);
@@ -28,6 +28,9 @@ module.exports = async (req, res) => {
   try {
     const query = req.query.query;
     if (!query) return res.status(400).json({ error: 'Missing ?query=' });
+    const cacheKey = `jupiter:${query}`;
+    const cached = getCachedValue(cacheKey);
+    if (cached) return res.status(200).json(cached);
 
     const apiKey = process.env.JUP_API_KEY || '';
     const endpoints = [
@@ -116,6 +119,7 @@ module.exports = async (req, res) => {
 
     if (merged) {
       merged.__sources = matchedSources;
+      setCachedValue(cacheKey, merged, 60 * 1000);
       return res.status(200).json(merged);
     }
 
