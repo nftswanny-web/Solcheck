@@ -35,26 +35,17 @@ module.exports = async (req, res) => {
 
     const apiKey = process.env.GMGN_API_KEY || process.env.GMGN_AGENT_API_KEY || '';
     const routeKey = process.env.GMGN_ROUTE_KEY || apiKey;
+    const baseUrl = process.env.GMGN_BASE_URL || 'https://openapi.gmgn.ai';
     const body = undefined;
-    const fullUrl = 'https://gmgn.ai' + path;
+    const fullUrl = baseUrl + path;
 
     const headers = {
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      'User-Agent': 'DLMMChecker/1.0 (+https://dlmmchecker.vercel.app)',
       'Accept': 'application/json, text/plain, */*',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Accept-Encoding': 'identity',
-      'Referer': 'https://gmgn.ai/sol/token/' + ((body && Array.isArray(body.addresses) && body.addresses[0]) || path.split('/').pop() || ''),
-      'Origin': 'https://gmgn.ai',
-      'Cookie': apiKey ? 'gmgn_api_token=' + apiKey + '; _ga=GA1.1.123456789.1700000000' : '_ga=GA1.1.123456789.1700000000',
       'X-APIKEY': apiKey || undefined,
+      'x-api-key': apiKey || undefined,
       'x-route-key': routeKey || undefined,
-      'Sec-Fetch-Dest': 'empty',
-      'Sec-Fetch-Mode': 'cors',
-      'Sec-Fetch-Site': 'same-origin',
-      'Sec-CH-UA': '"Chromium";v="131", "Google Chrome";v="131"',
-      'Sec-CH-UA-Mobile': '?0',
-      'Sec-CH-UA-Platform': '"macOS"',
-      'Priority': 'u=1, i',
+      'Authorization': apiKey ? `Bearer ${apiKey}` : undefined,
     };
     if (method !== 'GET') headers['Content-Type'] = 'application/json';
 
