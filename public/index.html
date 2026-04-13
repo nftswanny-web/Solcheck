@@ -1319,7 +1319,7 @@ function renderResults(mint, rc, jup, gmgn, met) {
   const symbol = jup?.symbol || rc?.tokenMeta?.symbol || '?';
   const logo = jup?.icon || '';
   const gmgnUrl = 'https://gmgn.ai/sol/token/' + encodeURIComponent(mint);
-  const bubbleMapsUrl = 'https://app.bubblemaps.io/sol/token/' + encodeURIComponent(mint) + '?hide_context=1&hideSidebar=1&partnerId=demo';
+  const bubbleMapsUrl = 'https://iframe.bubblemaps.io/map?chain=solana&address=' + encodeURIComponent(mint) + '&partnerId=demo';
   const xHandle = firstHandle(
     jup?.extensions?.twitter,
     jup?.socials?.twitter,
@@ -1426,9 +1426,24 @@ function renderResults(mint, rc, jup, gmgn, met) {
     gmgnData?.dexscr_boost_fee,
     jup?.dexPaidAt ? 299 : null
   );
-  const gmgnRugPct = num(rc?.score, rc?.score_normalised, rc?.score_normalized) != null
-    ? Number(num(rc?.score, rc?.score_normalised, rc?.score_normalized))
-    : pct(gmgnData?.rug_ratio, gmgnData?.rug_percent, gmgnData?.rug_percentage);
+  const gmgnDexPaidFlag = Boolean(
+    jup?.dexPaidAt ||
+    gmgnData?.dev?.dexscr_update_link === 1 ||
+    gmgnData?.dev?.dexscr_ad === 1 ||
+    gmgnData?.dev?.dexscr_boost_fee > 0 ||
+    gmgnDexPaid > 0
+  );
+  const gmgnRugPct = pct(
+    gmgnData?.stat?.rug_percentage,
+    gmgnData?.stat?.rug_percent,
+    gmgnData?.rug_percentage,
+    gmgnData?.rug_percent,
+    gmgnData?.stat?.top_bundler_trader_percentage,
+    gmgnData?.top_bundler_trader_percentage,
+    rc?.score,
+    rc?.score_normalised,
+    rc?.score_normalized
+  );
   const blacklistDisabled = (() => {
     const rawValue = num(
       getByPath(gmgnData, 'security.blacklist_disabled'),
@@ -1627,12 +1642,10 @@ function renderResults(mint, rc, jup, gmgn, met) {
     'gmgn_bundled_pct',
     gmgnBundledCount != null ? `${Math.round(gmgnBundledCount)} wallets` : ''
   );
-  h += miniMetric(
+  h += miniFlag(
     'Dex Paid',
-    gmgnDexPaid,
-    gmgnDexPaid != null ? fm(gmgnDexPaid, 0) : 'N/A',
-    '',
-    jup?.dexPaidAt ? 'Dex profile paid' : ''
+    gmgnDexPaidFlag,
+    ''
   );
   h += miniMetric(
     'Total Fees',
@@ -1644,21 +1657,9 @@ function renderResults(mint, rc, jup, gmgn, met) {
   h += miniMetric(
     'Rug %',
     gmgnRugPct,
-    gmgnRugPct != null ? gmgnRugPct.toFixed(0)+'%' : 'N/A',
+    gmgnRugPct != null ? gmgnRugPct.toFixed(1)+'%' : 'N/A',
     'rugcheck_score',
     ''
-  );
-  h += miniFlag(
-    'No Blacklist',
-    blacklistDisabled,
-    blacklistDisabled == null ? 'Not exposed by API' : ''
-  );
-  h += miniMetric(
-    'Burnt',
-    burntRatio,
-    burntRatio != null ? burntRatio.toFixed(0)+'%' : 'N/A',
-    burntRatio != null ? 'gmgn_top10_pct' : '',
-    burntRatio == null ? 'Not exposed by API' : ''
   );
   h += '</div></div>';
 
