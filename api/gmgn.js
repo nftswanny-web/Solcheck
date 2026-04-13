@@ -1,20 +1,14 @@
+const crypto = require('crypto');
 const fetch = require('node-fetch');
 const { applyCors, rateLimit } = require('./_utils');
 
-const ALLOWED_GET_PATHS = [
-  /^\/api\/v1\/token_info\/sol\/[1-9A-HJ-NP-Za-km-z]{32,44}$/i,
-  /^\/defi\/quotation\/v1\/tokens\/sol\/[1-9A-HJ-NP-Za-km-z]{32,44}$/i,
-  /^\/defi\/quotation\/v1\/tokens\/top_traders\/sol\/[1-9A-HJ-NP-Za-km-z]{32,44}\?orderby=profit&direction=desc$/i,
-];
+function unixSeconds() {
+  return Math.floor(Date.now() / 1000);
+}
 
-const ALLOWED_POST_PATHS = [
-  /^\/api\/v1\/multi_window_token_info(\?.*)?$/i,
-  /^\/api\/v1\/mutil_window_token_info(\?.*)?$/i,
-];
-
-function isAllowedPath(method, path) {
-  const patterns = method === 'POST' ? ALLOWED_POST_PATHS : ALLOWED_GET_PATHS;
-  return patterns.some((pattern) => pattern.test(path));
+function makeClientId() {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return [4, 2, 2, 2, 6].map((len) => crypto.randomBytes(len).toString('hex')).join('-');
 }
 
 module.exports = async (req, res) => {
@@ -25,34 +19,38 @@ module.exports = async (req, res) => {
   if (rateLimit(req, res, 'gmgn', 60 * 1000, 15)) return;
 
   try {
-    const source = req.query;
-    const path = source.path;
-    if (!path) return res.status(400).json({ error: 'Missing ?path=' });
-    const method = 'GET';
-    if (!isAllowedPath(method, path)) {
-      return res.status(403).json({ error: 'path_not_allowed', message: 'This GMGN route is not allowed.' });
+    const mint = String(req.query.mint || '').trim();
+    if (!mint) return res.status(400).json({ error: 'missing_mint' });
+    if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint)) {
+      return res.status(400).json({ error: 'invalid_mint' });
     }
 
     const apiKey = process.env.GMGN_API_KEY || process.env.GMGN_AGENT_API_KEY || '';
-    const routeKey = process.env.GMGN_ROUTE_KEY || apiKey;
+    const routeKey = process.env.GMGN_ROUTE_KEY || '';
     const baseUrl = process.env.GMGN_BASE_URL || 'https://openapi.gmgn.ai';
-    const body = undefined;
-    const fullUrl = baseUrl + path;
+    const timestamp = unixSeconds();
+    const clientId = makeClientId();
+    const fullUrl = `${baseUrl}/v1/token/info?timestamp=${timestamp}&client_id=${encodeURIComponent(clientId)}`;
 
     const headers = {
       'User-Agent': 'DLMMChecker/1.0 (+https://dlmmchecker.vercel.app)',
       'Accept': 'application/json, text/plain, */*',
+      'Content-Type': 'application/json',
       'X-APIKEY': apiKey || undefined,
       'x-api-key': apiKey || undefined,
       'x-route-key': routeKey || undefined,
       'Authorization': apiKey ? `Bearer ${apiKey}` : undefined,
     };
-    if (method !== 'GET') headers['Content-Type'] = 'application/json';
+
+    const body = {
+      chain: 'sol',
+      address: mint,
+    };
 
     const response = await fetch(fullUrl, {
-      method,
+      method: 'POST',
       headers,
-      body: method === 'GET' || body == null ? undefined : JSON.stringify(body),
+      body: JSON.stringify(body),
       timeout: 25000,
       redirect: 'follow',
     });
@@ -66,7 +64,6 @@ module.exports = async (req, res) => {
       'x-frame-options': response.headers.get('x-frame-options'),
     };
 
-    // Try parse as JSON
     try {
       const json = JSON.parse(text);
       if (!response.ok) {
@@ -74,37 +71,66 @@ module.exports = async (req, res) => {
           error: 'gmgn_upstream_error',
           upstream_status: response.status,
           headers: debugHeaders,
+          request: {
+            host: baseUrl,
+            endpoint: '/v1/token/info',
+            authMode: 'standard',
+            hasApiKey: Boolean(apiKey),
+            hasRouteKey: Boolean(routeKey),
+          },
           body: json,
         });
       }
-      res.status(response.status).json(json);
-    } catch(e) {
-      // If Cloudflare HTML challenge, return specific error
+
+      return res.status(response.status).json({
+        ...json,
+        __request: {
+          host: baseUrl,
+          endpoint: '/v1/token/info',
+          authMode: 'standard',
+        },
+      });
+    } catch (e) {
       if (
         text.includes('cf-browser-verification') ||
         text.includes('challenge-platform') ||
         text.includes('Attention Required! | Cloudflare') ||
-        text.includes('<title>Attention Required!')
+        text.includes('<title>Attention Required!') ||
+        text.includes('<title>Just a moment...')
       ) {
-        res.status(403).json({
+        return res.status(403).json({
           error: 'cloudflare_challenge',
           upstream_status: response.status,
           headers: debugHeaders,
+          request: {
+            host: baseUrl,
+            endpoint: '/v1/token/info',
+            authMode: 'standard',
+            hasApiKey: Boolean(apiKey),
+            hasRouteKey: Boolean(routeKey),
+          },
           message: 'GMGN blocked the request with a Cloudflare challenge.',
-          hint: 'Use a valid GMGN route/API key with server-side access or an approved GMGN Agent integration.',
-          body_preview: text.substring(0, 1000),
-        });
-      } else {
-        res.status(response.status).json({
-          error: 'gmgn_non_json_response',
-          status: response.status,
-          headers: debugHeaders,
-          message: text.substring(0, 500),
+          hint: 'This usually means the backend IP/environment is not yet accepted for this OpenAPI route.',
           body_preview: text.substring(0, 1000),
         });
       }
+
+      return res.status(response.status).json({
+        error: 'gmgn_non_json_response',
+        upstream_status: response.status,
+        headers: debugHeaders,
+        request: {
+          host: baseUrl,
+          endpoint: '/v1/token/info',
+          authMode: 'standard',
+          hasApiKey: Boolean(apiKey),
+          hasRouteKey: Boolean(routeKey),
+        },
+        message: text.substring(0, 500),
+        body_preview: text.substring(0, 1000),
+      });
     }
   } catch (err) {
-    res.status(500).json({ error: 'proxy_error', message: err.message });
+    return res.status(500).json({ error: 'proxy_error', message: err.message });
   }
 };
