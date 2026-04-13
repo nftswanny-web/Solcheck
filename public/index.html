@@ -410,6 +410,7 @@ const DEFAULT_SETTINGS = {
   gmgn_insiders_pct:  { g: 5,    y: 12,   dir: 'asc', label: 'GMGN Insiders %' },
   gmgn_bundled_pct:   { g: 5,    y: 12,   dir: 'asc', label: 'GMGN Bundled Wallets %' },
   gmgn_phishing_pct:  { g: 2,    y: 8,    dir: 'asc', label: 'GMGN Phishing %' },
+  gmgn_top10_pct:     { g: 15,   y: 30,   dir: 'asc', label: 'GMGN Top 10 Holders %' },
   gmgn_total_fees:    { g: 1,    y: 0.2,  dir: 'desc', label: 'GMGN Total Fees' },
   total_fees_sol:     { g: 100,  y: 20,   dir: 'desc', label: 'Fees Paid (SOL)' },
 };
@@ -846,6 +847,14 @@ function normalizeGmgnSignals(raw) {
     'bundle_rate',
   ]);
   const phishingRatio = findMetric(payloads, [
+    'data.portfolio.phishing',
+    'portfolio.phishing',
+    'data.portfolio.phishing_ratio',
+    'portfolio.phishing_ratio',
+    'data.portfolio.phishing_rate',
+    'portfolio.phishing_rate',
+    'data.portfolio.phishing_percentage',
+    'portfolio.phishing_percentage',
     'data.link.phishing',
     'link.phishing',
     'data.security.phishing_ratio',
@@ -860,6 +869,20 @@ function normalizeGmgnSignals(raw) {
     'phishing_rate',
     'data.phishing_percentage',
     'phishing_percentage',
+  ]);
+  const top10Holders = findMetric(payloads, [
+    'data.stat.top_10_holder_percentage',
+    'stat.top_10_holder_percentage',
+    'data.stat.top10_holder_percentage',
+    'stat.top10_holder_percentage',
+    'data.stat.top_10_holders_percentage',
+    'stat.top_10_holders_percentage',
+    'data.stat.top10_holders_percentage',
+    'stat.top10_holders_percentage',
+    'data.top_10_holder_percentage',
+    'top_10_holder_percentage',
+    'data.top10_holder_percentage',
+    'top10_holder_percentage',
   ]);
   const totalFees = findMetric(payloads, [
     'data.total_fee',
@@ -891,6 +914,10 @@ function normalizeGmgnSignals(raw) {
     phishing: {
       value: pct(phishingRatio.value),
       sourceField: phishingRatio.sourceField || null,
+    },
+    top10Holders: {
+      value: pct(top10Holders.value),
+      sourceField: top10Holders.sourceField || null,
     },
     totalFees: {
       value: num(totalFees.value),
@@ -1298,6 +1325,7 @@ function renderResults(mint, rc, jup, gmgn, met) {
   const gmgnBundledCount = num(gmgnSignals?.bundledWallets?.count);
   const gmgnBundledRatio = pct(gmgnSignals?.bundledWallets?.holdingRatio);
   const gmgnPhishing = pct(gmgnSignals?.phishing?.value);
+  const gmgnTop10Holders = pct(gmgnSignals?.top10Holders?.value);
   const gmgnTotalFees = num(gmgnSignals?.totalFees?.value);
   const devH = pct(
     jup?.audit?.devBalancePercentage,
@@ -1359,6 +1387,7 @@ function renderResults(mint, rc, jup, gmgn, met) {
         </div>
         <div class="token-meta">
           <div class="token-pill"><span class="k">MC</span><span>${esc(marketCap != null ? fm(marketCap) : 'N/A')}</span></div>
+          <div class="token-pill"><span class="k">Liq</span><span>${esc(totalLiquidity != null ? fm(totalLiquidity) : 'N/A')}</span></div>
           <div class="token-pill"><span class="k">Age</span><span>${esc(ageDisplay(tokenAgeHours))}</span></div>
         </div>
         <div class="token-links">
@@ -1435,6 +1464,13 @@ function renderResults(mint, rc, jup, gmgn, met) {
     gmgnBundledCount != null ? `${Math.round(gmgnBundledCount)} wallets` : (gmgnSignals?.bundledWallets?.sourceField ? `Source: ${gmgnSignals.bundledWallets.sourceField}` : 'GMGN')
   );
   h += card(
+    'Top 10 Holders',
+    gmgnTop10Holders,
+    gmgnTop10Holders != null ? gmgnTop10Holders.toFixed(2)+'%' : 'N/A',
+    'gmgn_top10_pct',
+    gmgnSignals?.top10Holders?.sourceField ? `Source: ${gmgnSignals.top10Holders.sourceField}` : 'GMGN'
+  );
+  h += card(
     'Phishing',
     gmgnPhishing,
     gmgnPhishing != null ? gmgnPhishing.toFixed(2)+'%' : 'N/A',
@@ -1458,8 +1494,6 @@ function renderResults(mint, rc, jup, gmgn, met) {
 
   // ── MARKET DATA ──
   h += '<div class="section"><div class="stitle"><span class="icon">💰</span> Market Data</div><div class="grid">';
-  h += card('Fees Paid', totalFees24h, totalFees24h != null ? fmSol(totalFees24h) : 'N/A', 'total_fees_sol', primaryPool ? 'Primary source fallback applied' : '');
-  h += card('Liquidity', totalLiquidity, totalLiquidity != null ? fm(totalLiquidity) : 'N/A', 'market_cap', Array.isArray(met) && met.length ? `${met.length} pools` : '');
   h += card('Top 10 H.', topH, topH != null ? topH.toFixed(2)+'%' : 'N/A', 'top_holders_pct');
   h += `<div class="card ${freezeDisabled === true ? 'green' : freezeDisabled === false ? 'red' : ''}"><div class="label">Freeze Auth</div><div class="value" style="font-size:16px">${esc(yesNo(freezeDisabled === null ? null : !freezeDisabled))}</div></div>`;
   h += `<div class="card ${mintDisabled === true ? 'green' : mintDisabled === false ? 'red' : ''}"><div class="label">Mint Auth</div><div class="value" style="font-size:16px">${esc(yesNo(mintDisabled === null ? null : !mintDisabled))}</div></div>`;
