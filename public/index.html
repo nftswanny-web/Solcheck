@@ -1404,6 +1404,7 @@ function renderResults(mint, rc, jup, gmgn, met) {
   const gmgnTop10Holders = pct(gmgnSignals?.top10Holders?.value);
   const gmgnTotalFees = num(gmgnSignals?.totalFees?.value);
   const gmgnHolders = num(gmgnData?.holder_count, gmgnData?.stat?.holder_count, jup?.holderCount, jup?.holders);
+  const gmgnInsidersWalletPct = gmgnInsidersCount != null && gmgnHolders ? (gmgnInsidersCount / gmgnHolders) * 100 : null;
   const gmgnDevHold = pct(
     gmgnData?.stat?.dev_team_hold_rate,
     gmgnData?.stat?.creator_hold_rate,
@@ -1414,9 +1415,20 @@ function renderResults(mint, rc, jup, gmgn, met) {
   );
   const gmgnDexPaid = num(
     gmgnData?.dev?.dexscr_boost_fee,
+    gmgnData?.dev?.dexscr_profile_fee,
+    gmgnData?.dev?.dex_paid_usd,
+    gmgnData?.dev?.dexPaidUsd,
+    gmgnData?.dex_paid_usd,
+    gmgnData?.dexPaidUsd,
+    jup?.dexPaidUsd,
+    jup?.dex_paid_usd,
     gmgnData?.dev?.dexscr_ad,
-    gmgnData?.dexscr_boost_fee
+    gmgnData?.dexscr_boost_fee,
+    jup?.dexPaidAt ? 299 : null
   );
+  const gmgnRugPct = num(rc?.score, rc?.score_normalised, rc?.score_normalized) != null
+    ? Number(num(rc?.score, rc?.score_normalised, rc?.score_normalized))
+    : pct(gmgnData?.rug_ratio, gmgnData?.rug_percent, gmgnData?.rug_percentage);
   const blacklistDisabled = (() => {
     const rawValue = num(
       getByPath(gmgnData, 'security.blacklist_disabled'),
@@ -1596,10 +1608,10 @@ function renderResults(mint, rc, jup, gmgn, met) {
   );
   h += miniMetric(
     'Insiders',
-    gmgnInsidersRatio,
-    gmgnInsidersRatio != null ? gmgnInsidersRatio.toFixed(2)+'%' : 'N/A',
+    gmgnInsidersWalletPct != null ? gmgnInsidersWalletPct : gmgnInsidersRatio,
+    gmgnInsidersWalletPct != null ? gmgnInsidersWalletPct.toFixed(2)+'%' : (gmgnInsidersRatio != null ? gmgnInsidersRatio.toFixed(2)+'%' : 'N/A'),
     'gmgn_insiders_pct',
-    gmgnInsidersCount != null ? `${Math.round(gmgnInsidersCount)} wallets` : ''
+    gmgnInsidersCount != null && gmgnHolders != null ? `${Math.round(gmgnInsidersCount)} / ${Math.round(gmgnHolders)} wallets` : (gmgnInsidersCount != null ? `${Math.round(gmgnInsidersCount)} wallets` : '')
   );
   h += miniMetric(
     'Phishing',
@@ -1620,17 +1632,21 @@ function renderResults(mint, rc, jup, gmgn, met) {
     gmgnDexPaid,
     gmgnDexPaid != null ? fm(gmgnDexPaid, 0) : 'N/A',
     '',
-    gmgnTotalFees != null ? `Fees ${fmSol(gmgnTotalFees, 2)}` : ''
+    jup?.dexPaidAt ? 'Dex profile paid' : ''
   );
-  h += miniFlag(
-    'No Mint',
-    mintDisabled == null ? null : mintDisabled === true,
-    mintDisabled == null ? '' : 'Authority disabled'
+  h += miniMetric(
+    'Total Fees',
+    gmgnTotalFees,
+    gmgnTotalFees != null ? fmSol(gmgnTotalFees, 2) : 'N/A',
+    'gmgn_total_fees',
+    ''
   );
-  h += miniFlag(
-    'No Freeze',
-    freezeDisabled == null ? null : freezeDisabled === true,
-    freezeDisabled == null ? '' : 'Authority disabled'
+  h += miniMetric(
+    'Rug %',
+    gmgnRugPct,
+    gmgnRugPct != null ? gmgnRugPct.toFixed(0)+'%' : 'N/A',
+    'rugcheck_score',
+    ''
   );
   h += miniFlag(
     'No Blacklist',
