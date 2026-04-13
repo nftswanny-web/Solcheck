@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DLMM CHECKER by SwannyDeFi</title>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap');
 :root{
@@ -322,11 +321,6 @@ tr:hover td{background:rgba(124,92,252,.03)}
         <span class="moon">◐</span>
         <span class="sun">☀</span>
       </button>
-      <div class="auth-shell">
-        <div id="authStatus" class="auth-status" style="display:none"></div>
-        <div id="googleSignIn" class="google-slot"></div>
-        <button id="signOutBtn" class="auth-btn" onclick="signOutGoogle()" style="display:none">Sign Out</button>
-      </div>
     </div>
   </div>
 </div>
@@ -556,7 +550,6 @@ function signOutGoogle() {
   const slot = $('googleSignIn');
   if (slot) slot.style.display = 'flex';
   saveStoredUser(null);
-  initGoogleAuth();
 }
 async function loadPublicConfig() {
   try {
@@ -565,10 +558,6 @@ async function loadPublicConfig() {
     if (r.ok && data) publicConfig = { ...publicConfig, ...data };
   } catch (e) {}
   document.title = publicConfig.brand || 'DLMM CHECKER by SwannyDeFi';
-  const loginSlot = $('googleSignIn');
-  if (loginSlot && !publicConfig.googleClientId) {
-    loginSlot.innerHTML = '<div class="auth-note">Set GOOGLE_CLIENT_ID on Vercel</div>';
-  }
   const walletNode = $('supportWalletValue');
   if (walletNode) walletNode.textContent = publicConfig.supportWallet;
   const qrNode = $('supportQrImage');
@@ -1634,8 +1623,6 @@ document.addEventListener('keydown', e => {
 });
 renderHistory();
 loadTheme();
-loadStoredUser();
-renderAuthState();
 loadPublicConfig();
 </script>
 </body>
