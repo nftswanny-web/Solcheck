@@ -1,5 +1,5 @@
 const fetch = require('node-fetch');
-const { applyCors, rateLimit } = require('./_utils');
+const { applyCors, rateLimit, getCachedValue, setCachedValue } = require('./_utils');
 
 function getApiKey() {
   return process.env.RUGCHECK_API_KEY || process.env.RUGCHECK_API || process.env.RUGCHECK_KEY || '';
@@ -105,6 +105,9 @@ module.exports = async (req, res) => {
   try {
     const mint = req.query.mint;
     if (!mint) return res.status(400).json({ error: 'Missing ?mint=' });
+    const cacheKey = `rugcheck:${mint}`;
+    const cached = getCachedValue(cacheKey);
+    if (cached) return res.status(200).json(cached);
 
     const encodedMint = encodeURIComponent(mint);
     const base = 'https://api.rugcheck.xyz/v1/tokens/' + encodedMint;
@@ -169,6 +172,7 @@ module.exports = async (req, res) => {
       merged.score_normalized = merged.score;
 
       merged.__sources = settled.filter((item) => item.ok).map((item) => item.label);
+      setCachedValue(cacheKey, merged, 5 * 60 * 1000);
       return res.status(200).json(merged);
     }
 
