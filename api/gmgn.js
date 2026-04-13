@@ -89,7 +89,12 @@ module.exports = async (req, res) => {
       res.status(response.status).json(json);
     } catch(e) {
       // If Cloudflare HTML challenge, return specific error
-      if (text.includes('cf-browser-verification') || text.includes('challenge-platform')) {
+      if (
+        text.includes('cf-browser-verification') ||
+        text.includes('challenge-platform') ||
+        text.includes('Attention Required! | Cloudflare') ||
+        text.includes('<title>Attention Required!')
+      ) {
         res.status(403).json({
           error: 'cloudflare_challenge',
           upstream_status: response.status,
