@@ -1,4 +1,4 @@
-const { applyCors, rateLimit } = require('./_utils');
+const { applyCors, rateLimit, getCachedValue, setCachedValue } = require('./_utils');
 
 module.exports = async (req, res) => {
   applyCors(req, res);
@@ -6,10 +6,16 @@ module.exports = async (req, res) => {
   if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' });
   if (rateLimit(req, res, 'config', 60 * 1000, 60)) return;
 
-  return res.status(200).json({
+  const cacheKey = 'config:public';
+  const cached = getCachedValue(cacheKey);
+  if (cached) return res.status(200).json(cached);
+
+  const payload = {
     googleClientId: process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
     supportWallet: 'GqXVKZwcQpLHowb2Q7TRdvhw8DBUDVFzTAbVTPfjMxxc',
     xUrl: 'https://x.com/SwannyDeFi',
     brand: 'DLMM CHECKER by SwannyDeFi',
-  });
+  };
+  setCachedValue(cacheKey, payload, 60 * 60 * 1000);
+  return res.status(200).json(payload);
 };
