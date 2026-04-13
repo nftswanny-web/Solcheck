@@ -1319,7 +1319,7 @@ function renderResults(mint, rc, jup, gmgn, met) {
   const symbol = jup?.symbol || rc?.tokenMeta?.symbol || '?';
   const logo = jup?.icon || '';
   const gmgnUrl = 'https://gmgn.ai/sol/token/' + encodeURIComponent(mint);
-  const bubbleMapsUrl = 'https://iframe.bubblemaps.io/map?chain=solana&address=' + encodeURIComponent(mint) + '&partnerId=demo';
+  const bubbleMapsUrl = 'https://app.bubblemaps.io/sol/token/' + encodeURIComponent(mint) + '?hide_context=1&hideSidebar=1&partnerId=demo';
   const xHandle = firstHandle(
     jup?.extensions?.twitter,
     jup?.socials?.twitter,
