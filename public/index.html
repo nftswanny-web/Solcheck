@@ -865,7 +865,13 @@ async function fetchGMGN(mint) {
         const r = await fetch(url, { signal: AbortSignal.timeout(20000) });
         const data = await r.json().catch(() => null);
         if (!r.ok) {
-          lastError = data?.message || data?.error || ('HTTP ' + r.status);
+          if (data?.error === 'cloudflare_challenge') {
+            lastError = 'GMGN is currently blocking server requests with Cloudflare.';
+          } else if (data?.error === 'gmgn_non_json_response') {
+            lastError = 'GMGN returned a non-JSON response, likely due to bot protection.';
+          } else {
+            lastError = data?.message || data?.error || ('HTTP ' + r.status);
+          }
           continue;
         }
         const signals = normalizeGmgnSignals(data);
@@ -887,7 +893,7 @@ async function fetchGMGN(mint) {
           };
         }
 
-        lastError = 'GMGN returned no sniper/insider/bundle fields';
+        lastError = 'GMGN responded, but the sniper/insider/bundle fields were not present.';
       } catch (e) {
         lastError = e.message || 'GMGN request failed';
       }
