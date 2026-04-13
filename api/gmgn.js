@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const fetch = require('node-fetch');
-const { applyCors, rateLimit } = require('./_utils');
+const { applyCors, rateLimit, getCachedValue, setCachedValue } = require('./_utils');
 
 function unixSeconds() {
   return Math.floor(Date.now() / 1000);
@@ -24,6 +24,9 @@ module.exports = async (req, res) => {
     if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint)) {
       return res.status(400).json({ error: 'invalid_mint' });
     }
+    const cacheKey = `gmgn:${mint}`;
+    const cached = getCachedValue(cacheKey);
+    if (cached) return res.status(200).json(cached);
 
     const apiKey = process.env.GMGN_API_KEY || process.env.GMGN_AGENT_API_KEY || '';
     const routeKey = process.env.GMGN_ROUTE_KEY || '';
@@ -76,7 +79,7 @@ module.exports = async (req, res) => {
         });
       }
 
-      return res.status(response.status).json({
+      const payload = {
         ...json,
         __request: {
           host: baseUrl,
@@ -84,7 +87,9 @@ module.exports = async (req, res) => {
           authMode: 'standard',
           method: 'GET',
         },
-      });
+      };
+      setCachedValue(cacheKey, payload, 60 * 1000);
+      return res.status(response.status).json(payload);
     } catch (e) {
       if (
         text.includes('cf-browser-verification') ||
