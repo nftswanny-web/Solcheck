@@ -141,7 +141,9 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-se
   radial-gradient(circle at top right, rgba(124,92,252,.12), transparent 40%),
   linear-gradient(180deg, rgba(17,17,37,.94), rgba(10,10,22,.98));padding:12px}
 .pool-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px}
+.pool-title{display:flex;align-items:center;gap:8px;min-width:0}
 .pool-name{font-size:12px;font-weight:800;color:var(--t)}
+.pool-brand{width:18px;height:18px;border-radius:6px;display:inline-block;flex:0 0 auto;object-fit:cover;border:1px solid rgba(255,255,255,.08);box-shadow:0 6px 16px rgba(255,122,26,.16)}
 .pool-address{font-size:9px;color:var(--t2);font-family:'JetBrains Mono',monospace;word-break:break-all;line-height:1.4}
 .pool-link{display:inline-flex;align-items:center;justify-content:center;padding:7px 10px;border-radius:8px;border:1px solid var(--orange-bd);background:linear-gradient(180deg,var(--orange-soft-strong),var(--orange-soft));color:#ffd7bf;font-size:10px;font-weight:700;text-decoration:none;white-space:nowrap}
 .pool-link:hover{border-color:rgba(255,171,111,.75);background:linear-gradient(180deg,rgba(255,122,26,.26),rgba(255,90,0,.16));color:#fff6ef}
@@ -1290,7 +1292,10 @@ function renderMeteoraRail(met) {
     return `<div class="pool-card">
       <div class="pool-head">
         <div>
-          <div class="pool-name">${esc(pairName)}</div>
+          <div class="pool-title">
+            <div class="pool-name">${esc(pairName)}</div>
+            <img class="pool-brand" src="/assets/meteora-logo.jpg" alt="Meteora">
+          </div>
           <div class="pool-address">${esc(sh(poolAddress))}</div>
         </div>
         <a class="pool-link" href="https://app.meteora.ag/dlmm/${esc(poolAddress)}?utm_campaign=lparmy&ref_id=SwannyDeFi" target="_blank" rel="noopener noreferrer">Open</a>
