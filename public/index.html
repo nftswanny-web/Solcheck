@@ -156,6 +156,16 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',system-ui,sans-se
 .section{margin-bottom:16px}
 .stitle{font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;display:flex;align-items:center;gap:6px}
 .stitle .icon{font-size:14px}
+.fold{border:1px solid var(--brd);border-radius:12px;background:var(--s1);overflow:hidden}
+.fold + .fold{margin-top:12px}
+.fold-summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;color:var(--t2);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.fold-summary::-webkit-details-marker{display:none}
+.fold-summary:hover{background:rgba(255,255,255,.02)}
+.fold-title{display:flex;align-items:center;gap:6px}
+.fold-caret{font-size:14px;color:var(--t);transition:transform .18s ease}
+.fold[open] .fold-caret{transform:rotate(90deg)}
+.fold-body{padding:0 8px 8px}
+[data-theme="light"] .fold-summary:hover{background:rgba(14,34,51,.03)}
 
 /* Score cards grid */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:8px}
@@ -1703,12 +1713,12 @@ function renderResults(mint, rc, jup, gmgn, met) {
   }
 
   if (geckoSecurityUrl) {
-    h += '<div class="section"><div class="stitle"><span class="icon">🦎</span> GeckoTerminal Security Card</div>';
-    h += `<div class="card embed-card"><iframe class="embed-frame" height="520" title="GeckoTerminal Security Card" src="${geckoSecurityUrl}" frameborder="0" allow="clipboard-write" allowfullscreen></iframe></div></div>`;
+    h += '<div class="section"><details class="fold"><summary class="fold-summary"><span class="fold-title"><span class="icon">🦎</span> GeckoTerminal Security Card</span><span class="fold-caret">›</span></summary><div class="fold-body">';
+    h += `<div class="card embed-card"><iframe class="embed-frame" height="520" title="GeckoTerminal Security Card" src="${geckoSecurityUrl}" frameborder="0" allow="clipboard-write" allowfullscreen></iframe></div></div></details></div>`;
   }
 
   // ── TOKEN DETAILS ──
-  h += '<div class="section"><div class="stitle"><span class="icon">ℹ️</span> Token Details</div><div class="grid">';
+  h += '<div class="section"><details class="fold"><summary class="fold-summary"><span class="fold-title"><span class="icon">ℹ️</span> Token Details</span><span class="fold-caret">›</span></summary><div class="fold-body"><div class="grid">';
   const extraFields = [
     ['Holders', num(jup?.holderCount, jup?.holders, rc?.token?.holderCount)?.toLocaleString()],
     ['Volume 24h', num(jup?.daily_volume, jup?.volume24h, primaryPool?.trade_volume_24h, primaryPool?.volume?.['24h']) != null ? fm(num(jup?.daily_volume, jup?.volume24h, primaryPool?.trade_volume_24h, primaryPool?.volume?.['24h'])) : null],
@@ -1723,7 +1733,7 @@ function renderResults(mint, rc, jup, gmgn, met) {
       h += `<div class="card"><div class="label">${label}</div><div class="value" style="font-size:13px;color:var(--t)">${esc(String(val))}</div></div>`;
     }
   });
-  h += '</div></div>';
+  h += '</div></div></details></div>';
 
   // ── RUGCHECK RISKS ──
   if (rc?.risks?.length) {
